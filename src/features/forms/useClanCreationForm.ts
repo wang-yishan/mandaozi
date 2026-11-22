@@ -15,7 +15,12 @@ export const defaultClanCreationValues: ClanCreationValues = {
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /** Names the clan service reports as already taken. */
-const takenClanNames = new Set(["wolfpack", "shadowclan", "ironguard", "nightfall"]);
+const takenClanNames = new Set([
+  "wolfpack",
+  "shadowclan",
+  "ironguard",
+  "nightfall",
+]);
 
 /** Sync validator: required + format checks, returns an error message or nothing. */
 export function validateClanName(value: string): string | undefined {
@@ -26,7 +31,9 @@ export function validateClanName(value: string): string | undefined {
 }
 
 /** Async debounced validator: checks the clan name is not already taken. */
-export async function validateClanNameIsTaken(value: string): Promise<string | undefined> {
+export async function validateClanNameIsTaken(
+  value: string,
+): Promise<string | undefined> {
   if (!takenClanNames.has(value.trim().toLowerCase())) return undefined;
   return "That clan name is already taken.";
 }
