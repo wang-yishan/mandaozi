@@ -5,6 +5,25 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: ["**.*"],
   cacheComponents: true,
   partialPrefetching: true,
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "Access-Control-Allow-Origin", value: "*" },
+          {
+            key: "Access-Control-Allow-Methods",
+            value: "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+          },
+          {
+            key: "Access-Control-Allow-Headers",
+            value: "Content-Type, Authorization, X-Requested-With",
+          },
+          { key: "Access-Control-Max-Age", value: "86400" },
+        ],
+      },
+    ];
+  },
   turbopack: {
     rules: {
       "*.css": {
