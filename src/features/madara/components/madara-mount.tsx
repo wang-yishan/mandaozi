@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { createBundleLoader } from "@/lib/load-split-bundle";
 
 // Ordered chunks of the Mandaozi bundle (split from the original single-file
 // artifact at AST statement boundaries; concatenation is byte-identical).
@@ -12,41 +13,26 @@ const SCRIPTS = [
   "/madara/05-boot.js",
 ] as const;
 
-const BOOT = SCRIPTS[SCRIPTS.length - 1];
-
-let scriptsStarted = false;
-
-function loadSequentially(urls: readonly string[], index = 0): void {
-  if (index >= urls.length) return;
-  const script = document.createElement("script");
-  script.src = urls[index];
-  script.onload = () => loadSequentially(urls, index + 1);
-  // Skip failed chunks rather than stalling the chain.
-  script.onerror = () => loadSequentially(urls, index + 1);
-  document.body.appendChild(script);
-}
+const mountBundle = createBundleLoader(SCRIPTS);
 
 /** Mounts the prebuilt Mandaozi app into `<div id="root">`. */
 export function MadaraMount() {
+  const rootRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     const link = document.createElement("link");
     link.rel = "stylesheet";
     link.href = "/madara/madara.css";
     document.head.appendChild(link);
 
-    if (scriptsStarted) {
-      // Remount after client-side navigation: re-run only the boot chunk
-      // against the fresh #root element.
-      const boot = document.createElement("script");
-      boot.src = `${BOOT}?remount=${Date.now()}`;
-      document.body.appendChild(boot);
-    } else {
-      scriptsStarted = true;
-      loadSequentially(SCRIPTS);
+    if (rootRef.current) {
+      void mountBundle(rootRef.current).catch((error: unknown) => {
+        console.error("Failed to mount Madara bundle", error);
+      });
     }
 
     return () => link.remove();
   }, []);
 
-  return <div id="root" />;
+  return <div id="root" ref={rootRef} />;
 }

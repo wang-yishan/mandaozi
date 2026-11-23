@@ -1,6 +1,8 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useEffect } from "react";
+import { isValidPageId, MADARA_PAGE_PARAM } from "../lib/madara-navigation";
 import { useMadaraStore } from "../store/madara-store";
 import { OnboardingFlow } from "./onboarding/onboarding-flow";
 import { AppShell } from "./shell/app-shell";
@@ -19,6 +21,23 @@ function FontLoader() {
   return null;
 }
 
+function UrlPageSync() {
+  const searchParams = useSearchParams();
+  const page = useMadaraStore((s) => s.page);
+  const setPage = useMadaraStore((s) => s.setPage);
+  const onboardingDone = useMadaraStore((s) => s.onboardingDone);
+  const pageParam = searchParams.get(MADARA_PAGE_PARAM);
+
+  useEffect(() => {
+    if (!onboardingDone) return;
+    if (isValidPageId(pageParam) && pageParam !== page) {
+      setPage(pageParam);
+    }
+  }, [onboardingDone, page, pageParam, setPage]);
+
+  return null;
+}
+
 export function MadaraApp() {
   const onboardingDone = useMadaraStore((s) => s.onboardingDone);
   const page = useMadaraStore((s) => s.page);
@@ -33,6 +52,7 @@ export function MadaraApp() {
   return (
     <>
       <FontLoader />
+      <UrlPageSync />
       {!onboardingDone ? <OnboardingFlow /> : <AppShell />}
     </>
   );
