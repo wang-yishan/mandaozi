@@ -12,6 +12,7 @@ import {
 import { useEffect, useState } from "react";
 import { getCatalogItem } from "../../data/catalog";
 import { getSidebarParent, SIDEBAR_NAV } from "../../data/sidebar-nav";
+import { useMadaraNavigation } from "../../lib/madara-navigation";
 import { useMadaraStore } from "../../store/madara-store";
 import type { FeatureId } from "../../types";
 import { AllFeaturesDrawer } from "../catalog/all-features-drawer";
@@ -46,6 +47,7 @@ import { CategoryPage, CompletePage, LessonPage } from "../world/world-page";
 import { WorldProgressPage } from "../world/world-progress-page";
 import { SaveFeedbackBinder, ThemeBinder } from "./binders";
 import { DesktopSidebar } from "./desktop-sidebar";
+import { HomeRightSection } from "../home/home-right-section";
 
 const MOBILE_NAV = [
   { id: "home-overview", label: "Home", icon: Home, parent: "home" },
@@ -110,9 +112,9 @@ function CatalogRedirect({ itemId }: { itemId: FeatureId | null }) {
 
 export function AppShell() {
   const page = useMadaraStore((s) => s.page);
-  const setPage = useMadaraStore((s) => s.setPage);
   const setAllFeaturesOpen = useMadaraStore((s) => s.setAllFeaturesOpen);
   const [moreOpen, setMoreOpen] = useState(false);
+  const { navigateToPage } = useMadaraNavigation();
   const activeParent = getSidebarParent(page);
   const profileParent = SIDEBAR_NAV.find((n) => n.id === "profile");
   const moreActive = activeParent?.id === "profile";
@@ -136,7 +138,7 @@ export function AppShell() {
             <div className="max-w-[1280px] mx-auto px-4 h-[64px] flex items-center gap-3">
               <button
                 type="button"
-                onClick={() => setPage("home-overview")}
+                onClick={() => navigateToPage("home-overview")}
                 className="flex items-center gap-2 min-h-[44px] lg:hidden"
               >
                 <span className="hanzi text-[28px] font-black leading-none">
@@ -163,7 +165,14 @@ export function AppShell() {
           </header>
 
           <main className="flex-1 max-w-[1280px] w-full mx-auto px-4 py-5 pb-[96px] lg:pb-8">
-            <PageRouter />
+            <div className="flex gap-4">
+              <div className="flex-1 min-w-0">
+                <PageRouter />
+              </div>
+              <aside className="w-[320px] hidden xl:block">
+                <HomeRightSection />
+              </aside>
+            </div>
           </main>
         </div>
       </div>
@@ -198,7 +207,7 @@ export function AppShell() {
                   key={child.id}
                   type="button"
                   onClick={() => {
-                    setPage(child.id);
+                    navigateToPage(child.id);
                     setMoreOpen(false);
                   }}
                   className={`min-h-[44px] px-4 rounded-xl text-left font-semibold ${
@@ -239,7 +248,7 @@ export function AppShell() {
                 type="button"
                 onClick={() => {
                   setMoreOpen(false);
-                  setPage(n.id);
+                  navigateToPage(n.id);
                 }}
                 className="flex flex-col items-center justify-center min-h-[72px] gap-0.5"
               >

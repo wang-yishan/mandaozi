@@ -1,12 +1,13 @@
 "use client";
 
 import { getSidebarParent } from "../../data/sidebar-nav";
+import { useMadaraNavigation } from "../../lib/madara-navigation";
 import { useMadaraStore } from "../../store/madara-store";
 import { Chip } from "../ui/chip";
 
 export function PageSubnav() {
   const page = useMadaraStore((s) => s.page);
-  const setPage = useMadaraStore((s) => s.setPage);
+  const { navigateToPage } = useMadaraNavigation();
   const parent = getSidebarParent(page);
   if (!parent) return null;
 
@@ -16,7 +17,7 @@ export function PageSubnav() {
         <Chip
           key={child.id}
           active={page === child.id}
-          onClick={() => setPage(child.id)}
+          onClick={() => navigateToPage(child.id)}
         >
           {child.label}
         </Chip>
