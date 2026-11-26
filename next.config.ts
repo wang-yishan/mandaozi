@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: ["**.*"],
   cacheComponents: true,
   partialPrefetching: true,
+  serverExternalPackages: ["better-sqlite3"],
   async headers() {
     return [
       {
@@ -24,14 +25,7 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-  turbopack: {
-    rules: {
-      "*.css": {
-        loaders: ["@tailwindcss/turbopack"],
-        as: "*.css",
-      },
-    },
-  },
+
 };
 
 export default nextConfig;

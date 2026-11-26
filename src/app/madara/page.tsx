@@ -1,12 +1,14 @@
-import type { Metadata } from "next";
-import { MadaraClient } from "@/features/madara/components/madara-client";
+export const instant = false;
 
-export const metadata: Metadata = {
-  title: "Mandaozi — Mandarin Daily Rank",
-  description:
-    "Mandaozi demo: kosakata, latihan, ranking, dan komunitas belajar Mandarin harian.",
-};
+import { redirect } from "next/navigation";
+import { legacyPageToHref } from "@/lib/legacy-redirect";
 
-export default function MadaraPage() {
-  return <MadaraClient />;
+export default async function MadaraPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const sp = await searchParams;
+  const page = typeof sp.page === "string" ? sp.page : undefined;
+  redirect(legacyPageToHref(page));
 }

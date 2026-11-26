@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { OverviewMount } from "@/features/overview/components/overview-mount";
+import { OverviewMount } from "@/components/overview/components/overview-mount";
 
 export const metadata: Metadata = {
   title: "Mandaozi — Mandarin Daily Rank",
