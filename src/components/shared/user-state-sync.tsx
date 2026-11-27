@@ -7,12 +7,12 @@ import {
   saveMadaraStateAction,
   savePhonicsStateAction,
 } from "@/app/actions/user-state";
-import { usePhonicsStore } from "@/modules/practice-pinyin-zhuyin/store";
-import { useMadaraStore } from "@/store/madara-store";
 import type {
   MadaraPersistedState,
   PhonicsPersistedState,
 } from "@/db/repositories/user-state.repo";
+import { usePhonicsStore } from "@/modules/practice-pinyin-zhuyin/store";
+import { useMadaraStore } from "@/store/madara-store";
 
 function getMadaraSnapshot(): MadaraPersistedState {
   const s = useMadaraStore.getState();
@@ -85,7 +85,8 @@ function readLocalMadara(): MadaraPersistedState | null {
       sidebarCollapsed: Boolean(state.sidebarCollapsed),
       moreMenuLayout: state.moreMenuLayout ?? "grid-2",
       roadmapProgressById:
-        state.roadmapProgressById && typeof state.roadmapProgressById === "object"
+        state.roadmapProgressById &&
+        typeof state.roadmapProgressById === "object"
           ? state.roadmapProgressById
           : {},
     };
@@ -133,6 +134,16 @@ export function UserStateSync() {
 
     (async () => {
       try {
+        if (!useMadaraStore.persist.hasHydrated()) {
+          await new Promise<void>((resolve) => {
+            const unsub = useMadaraStore.persist.onFinishHydration(() => {
+              unsub();
+              resolve();
+            });
+          });
+        }
+        if (cancelled) return;
+
         const loaded = await loadUserStateAction();
         if (cancelled) return;
 
@@ -159,7 +170,19 @@ export function UserStateSync() {
 
         // Hydrate from DB (DB is canonical)
         if (loaded.madara) {
-          useMadaraStore.setState(loaded.madara);
+          const local = useMadaraStore.getState();
+          const mergedMadara = {
+            ...loaded.madara,
+            // Preserve monotonic onboarding completion if it happened during hydration.
+            onboardingDone:
+              loaded.madara.onboardingDone || local.onboardingDone,
+          };
+          useMadaraStore.setState(mergedMadara);
+          if (mergedMadara.onboardingDone && !loaded.madara.onboardingDone) {
+            void saveMadaraStateAction(getMadaraSnapshot()).catch((err) =>
+              console.error("Failed to persist onboarding completion", err),
+            );
+          }
         } else {
           await saveMadaraStateAction(getMadaraSnapshot());
         }

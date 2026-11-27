@@ -86,7 +86,15 @@ export const usePhonicsStore = create<PhonicsStore>()(
     }),
     {
       name: "mandaozi-phonics-v1",
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() =>
+        typeof window !== "undefined"
+          ? window.localStorage
+          : {
+              getItem: () => null,
+              setItem: () => {},
+              removeItem: () => {},
+            },
+      ),
       partialize: (s) => ({
         displayMode: s.displayMode,
         selectedAccent: s.selectedAccent,

@@ -402,7 +402,15 @@ export const useMadaraStore = create<MadaraState>()(
     }),
     {
       name: "madara-modular-v1",
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() =>
+        typeof window !== "undefined"
+          ? window.localStorage
+          : {
+              getItem: () => null,
+              setItem: () => {},
+              removeItem: () => {},
+            },
+      ),
       partialize: (s) => ({
         xp: s.xp,
         wordsMastered: s.wordsMastered,

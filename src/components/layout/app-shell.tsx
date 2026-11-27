@@ -55,17 +55,32 @@ function OnboardingGuard({ children }: { children: React.ReactNode }) {
   const onboardingDone = useMadaraStore((s) => s.onboardingDone);
   const pathname = usePathname();
   const router = useRouter();
+  const [hydrated, setHydrated] = useState(() =>
+    useMadaraStore.persist.hasHydrated(),
+  );
 
   useEffect(() => {
+    const unsubFinish = useMadaraStore.persist.onFinishHydration(() => {
+      setHydrated(true);
+    });
+    setHydrated(useMadaraStore.persist.hasHydrated());
+    return () => {
+      unsubFinish();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
     const onOnboarding = pathname === "/onboarding";
     if (!onboardingDone && !onOnboarding) {
       router.replace("/onboarding");
     } else if (onboardingDone && onOnboarding) {
       router.replace("/home");
     }
-  }, [onboardingDone, pathname, router]);
+  }, [hydrated, onboardingDone, pathname, router]);
 
   const onOnboarding = pathname === "/onboarding";
+  if (!hydrated) return <div className="min-h-[100dvh] bg-[#FAF8F2]" />;
   if (!onboardingDone && !onOnboarding)
     return <div className="min-h-[100dvh] bg-[#FAF8F2]" />;
   if (onboardingDone && onOnboarding)
@@ -113,13 +128,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <OnboardingGuard>
       <FontLoader />
+      <UserStateSync />
       {onOnboarding ? (
         children
       ) : (
         <div className="app-theme min-h-[100dvh] bg-[var(--bg)]">
           <ThemeBinder />
           <SaveFeedbackBinder />
-          <UserStateSync />
           <Toast />
           <EnrollmentModal />
 
