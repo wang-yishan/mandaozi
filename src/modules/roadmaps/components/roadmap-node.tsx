@@ -8,6 +8,7 @@ import {
   Lock,
   PlayCircle,
   Sparkles,
+  Trophy,
 } from "lucide-react";
 import type { RoadmapNodeVM } from "../types/roadmap";
 import { RoadmapNodeChoicePicker } from "./roadmap-node-choice-picker";
@@ -56,6 +57,20 @@ const STATUS_META = {
       "border-[color:color-mix(in_srgb,var(--primary)_45%,var(--line))] bg-[var(--surface)] shadow-[0_0_0_1px_color-mix(in_srgb,var(--primary)_18%,transparent)]",
     badge: "bg-[var(--primary-soft)] text-[var(--primary)]",
   },
+  mastered: {
+    label: "Mastered",
+    icon: Trophy,
+    className:
+      "border-[color:color-mix(in_srgb,var(--success)_45%,var(--line))] bg-[var(--success-bg)] shadow-[0_0_0_1px_color-mix(in_srgb,var(--success)_18%,transparent)]",
+    badge: "bg-[var(--success-bg)] text-[var(--success)]",
+  },
+  review_required: {
+    label: "Learning",
+    icon: PlayCircle,
+    className:
+      "border-[color:color-mix(in_srgb,var(--primary)_35%,var(--line))] bg-[var(--surface)]",
+    badge: "bg-[var(--primary-soft)] text-[var(--primary)]",
+  },
 } as const;
 
 export function RoadmapNode({ data }: NodeProps<RoadmapFlowNode>) {
@@ -88,9 +103,17 @@ export function RoadmapNode({ data }: NodeProps<RoadmapFlowNode>) {
             className="mt-1 h-2.5 w-2.5 rounded-full bg-[var(--primary)] animate-pulse"
             aria-hidden
           />
+        ) : data.status === "mastered" ? (
+          <span className="text-[var(--success)]" aria-hidden>
+            <Trophy size={16} />
+          </span>
         ) : data.status === "completed" ? (
           <span className="text-[var(--success)]" aria-hidden>
             <CheckCircle2 size={16} />
+          </span>
+        ) : data.status === "review_required" ? (
+          <span className="text-[var(--primary)]" aria-hidden>
+            <PlayCircle size={15} />
           </span>
         ) : data.status === "locked" ? (
           <span className="text-[var(--muted)]" aria-hidden>

@@ -46,6 +46,24 @@ export function RoadmapRecommendedNext({ node, onSelect, onOpen }: Props) {
         </div>
       )}
 
+      {node?.resources?.length ? (
+        <div className="mt-4 rounded-xl border border-[var(--line)] bg-[var(--bg)] p-3">
+          <div className="text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--muted)]">
+            Learning resources
+          </div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {node.resources.slice(0, 4).map((r) => (
+              <span
+                key={`${r.id}-${r.role}`}
+                className="inline-flex items-center rounded-full border border-[var(--line)] bg-[var(--surface)] px-3 py-1.5 text-xs font-bold text-[var(--ink)]"
+              >
+                {r.role}: {r.title}
+              </span>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       {node && (
         <div className="mt-4 flex flex-wrap gap-2">
           <button

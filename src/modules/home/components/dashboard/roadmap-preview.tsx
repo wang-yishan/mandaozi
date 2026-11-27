@@ -1,6 +1,14 @@
 "use client";
 
-import { Check, ChevronRight, Lock, MapPin } from "lucide-react";
+import {
+  Check,
+  ChevronRight,
+  Lock,
+  MapPin,
+  PlayCircle,
+  RotateCcw,
+  Trophy,
+} from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { ProgressBar } from "@/components/ui/progress-bar";
@@ -14,6 +22,13 @@ interface RoadmapPreviewProps {
 }
 
 function StatusIcon({ status }: { status: RoadmapPreviewNode["status"] }) {
+  if (status === "mastered") {
+    return (
+      <span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--success-bg)] text-[var(--success)] ring-1 ring-[color:color-mix(in_srgb,var(--success)_20%,transparent)]">
+        <Trophy size={16} strokeWidth={2.5} />
+      </span>
+    );
+  }
   if (status === "completed") {
     return (
       <span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--success-bg)] text-[var(--success)] ring-1 ring-[color:color-mix(in_srgb,var(--success)_20%,transparent)]">
@@ -21,10 +36,25 @@ function StatusIcon({ status }: { status: RoadmapPreviewNode["status"] }) {
       </span>
     );
   }
-  if (status === "current") {
+  if (status === "review_required") {
+    return (
+      <span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--warning-bg,#fff7ed)] text-[var(--warning,#b45309)] ring-1 ring-[color:color-mix(in_srgb,var(--warning,#b45309)_20%,transparent)]">
+        <RotateCcw size={16} />
+      </span>
+    );
+  }
+  if (
+    status === "current" ||
+    status === "in-progress" ||
+    status === "recommended"
+  ) {
     return (
       <span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--primary-soft)] text-[var(--primary)] ring-4 ring-[color:color-mix(in_srgb,var(--primary)_12%,transparent)]">
-        <MapPin size={16} />
+        {status === "in-progress" || status === "recommended" ? (
+          <PlayCircle size={16} />
+        ) : (
+          <MapPin size={16} />
+        )}
       </span>
     );
   }
@@ -43,7 +73,11 @@ function StatusIcon({ status }: { status: RoadmapPreviewNode["status"] }) {
 }
 
 function statusLabel(status: RoadmapPreviewNode["status"]): string {
+  if (status === "mastered") return "Mastered";
   if (status === "completed") return "Completed";
+  if (status === "review_required") return "Review required";
+  if (status === "in-progress") return "In progress";
+  if (status === "recommended") return "Recommended next";
   if (status === "current") return "Current stage";
   if (status === "available") return "Available next";
   return "Locked";

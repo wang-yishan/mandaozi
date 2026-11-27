@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "../index";
 import {
   phonicsIncorrectAnswers,
@@ -9,8 +9,9 @@ import {
   userPhonicsSettings,
   userProfiles,
   userProgress,
+  userRoadmapBranchChoices,
   userRoadmapNodeProgress,
-  users,
+  userRoadmapRecords,
   userTaskCompletions,
 } from "../schema";
 
@@ -40,6 +41,7 @@ export interface MadaraPersistedState {
     { completedNodeIds: string[]; inProgressNodeId: string | null }
   >;
   selectedPathRoadmapId: string | null;
+  roadmapChoiceById: Record<string, Record<string, string>>;
 }
 
 export interface PhonicsPersistedState {
@@ -130,6 +132,11 @@ export function getMadaraPersistedState(
     .from(userRoadmapNodeProgress)
     .where(eq(userRoadmapNodeProgress.userId, userId))
     .all();
+  const choiceRows = db
+    .select()
+    .from(userRoadmapBranchChoices)
+    .where(eq(userRoadmapBranchChoices.userId, userId))
+    .all();
 
   const roadmapProgressById: MadaraPersistedState["roadmapProgressById"] = {};
   for (const r of roadmapRows) {
@@ -144,6 +151,13 @@ export function getMadaraPersistedState(
       entry.inProgressNodeId = r.nodeId;
     }
     roadmapProgressById[r.roadmapId] = entry;
+  }
+
+  const roadmapChoiceById: MadaraPersistedState["roadmapChoiceById"] = {};
+  for (const c of choiceRows) {
+    const byRoadmap = roadmapChoiceById[c.roadmapId] ?? {};
+    byRoadmap[c.choiceNodeId] = c.choiceId;
+    roadmapChoiceById[c.roadmapId] = byRoadmap;
   }
 
   return {
@@ -176,6 +190,7 @@ export function getMadaraPersistedState(
       "grid-2",
     roadmapProgressById,
     selectedPathRoadmapId: profile?.selectedPathRoadmapId ?? null,
+    roadmapChoiceById,
   };
 }
 
@@ -223,6 +238,49 @@ export function saveMadaraPersistedState(
         },
       })
       .run();
+
+    // Keep canonical single-selected roadmap record in sync.
+    tx.update(userRoadmapRecords)
+      .set({ isSelected: false, selectedAt: null, updatedAt: now })
+      .where(eq(userRoadmapRecords.userId, userId))
+      .run();
+    if (state.selectedPathRoadmapId) {
+      const existingSelected = tx
+        .select()
+        .from(userRoadmapRecords)
+        .where(
+          and(
+            eq(userRoadmapRecords.userId, userId),
+            eq(userRoadmapRecords.roadmapId, state.selectedPathRoadmapId),
+          ),
+        )
+        .get();
+      tx.insert(userRoadmapRecords)
+        .values({
+          userId,
+          roadmapId: state.selectedPathRoadmapId,
+          status:
+            existingSelected?.status === "completed" ? "completed" : "active",
+          isSelected: true,
+          selectedAt: now,
+          startedAt: existingSelected?.startedAt ?? now,
+          completedAt: existingSelected?.completedAt ?? null,
+          lastOpenedAt: now,
+          updatedAt: now,
+        })
+        .onConflictDoUpdate({
+          target: [userRoadmapRecords.userId, userRoadmapRecords.roadmapId],
+          set: {
+            isSelected: true,
+            selectedAt: now,
+            lastOpenedAt: now,
+            updatedAt: now,
+            status:
+              existingSelected?.status === "completed" ? "completed" : "active",
+          },
+        })
+        .run();
+    }
 
     tx.insert(userProgress)
       .values({
@@ -301,6 +359,28 @@ export function saveMadaraPersistedState(
             roadmapId,
             nodeId: rp.inProgressNodeId,
             status: "in-progress",
+            updatedAt: now,
+          })
+          .onConflictDoNothing()
+          .run();
+      }
+    }
+
+    tx.delete(userRoadmapBranchChoices)
+      .where(eq(userRoadmapBranchChoices.userId, userId))
+      .run();
+    for (const [roadmapId, choices] of Object.entries(
+      state.roadmapChoiceById ?? {},
+    )) {
+      for (const [choiceNodeId, choiceId] of Object.entries(choices ?? {})) {
+        if (!choiceNodeId || !choiceId) continue;
+        tx.insert(userRoadmapBranchChoices)
+          .values({
+            userId,
+            roadmapId,
+            choiceNodeId,
+            choiceId,
+            selectedAt: now,
             updatedAt: now,
           })
           .onConflictDoNothing()

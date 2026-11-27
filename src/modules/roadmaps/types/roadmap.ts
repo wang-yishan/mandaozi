@@ -3,7 +3,9 @@ export type RoadmapNodeStatus =
   | "in-progress"
   | "available"
   | "locked"
-  | "recommended";
+  | "recommended"
+  | "mastered"
+  | "review_required";
 
 export type RoadmapNodeCategory =
   | "foundation"
@@ -104,9 +106,37 @@ export interface RoadmapProgress {
   inProgressNodeId: string | null;
 }
 
+export interface RoadmapNodeCompetencyVM {
+  id: string;
+  title: string;
+  state?: "not_started" | "learning" | "mastered" | "review_required";
+  score?: number;
+}
+
+export interface RoadmapNodeResourceVM {
+  id: string;
+  title: string;
+  kind: string;
+  href?: string;
+  role: "learn" | "practice" | "review" | "assessment";
+}
+
+export interface RoadmapNodeAssessmentVM {
+  id: string;
+  title: string;
+  kind?: string;
+  passed?: boolean | null;
+  lastScore?: number | null;
+  maxScore?: number | null;
+}
+
 export interface RoadmapNodeVM extends RoadmapNodeDef {
   status: RoadmapNodeStatus;
   prerequisites: Array<{ id: string; title: string; completed: boolean }>;
+  competencies?: RoadmapNodeCompetencyVM[];
+  resources?: RoadmapNodeResourceVM[];
+  assessments?: RoadmapNodeAssessmentVM[];
+  masteryState?: "not_started" | "learning" | "mastered" | "review_required";
 }
 
 /** Pilihan node per user: nodeId -> choiceId. */

@@ -8,12 +8,19 @@ import {
   Lock,
   PlayCircle,
   Route,
+  Trophy,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  getRoadmapProgressionContextAction,
+  listUserRoadmapRecordsAction,
+} from "@/app/actions/roadmap";
 import { PageSubnav } from "@/components/layout/page-subnav";
 import { Card } from "@/components/ui/card";
+import { getGuidedRecommendation } from "@/modules/guided-learning/engine";
+import { RoadmapRecommendedNext } from "@/modules/roadmaps/components/roadmap-recommended-next";
 import type {
   RoadmapDef,
   RoadmapNodeVM,
@@ -24,11 +31,13 @@ import {
   getSelectedChoice,
 } from "@/modules/roadmaps/utils/roadmap-choices";
 import {
-  buildRoadmapNodeVMs,
-  getNextRecommendedNode,
   getRoadmapCompletion,
   normalizeRoadmapProgress,
 } from "@/modules/roadmaps/utils/roadmap-progress";
+import {
+  buildRoadmapNodeVMsWithProgression,
+  type RoadmapProgressionInput,
+} from "@/modules/roadmaps/utils/roadmap-progression-adapter";
 import { useMadaraStore } from "@/store/madara-store";
 
 interface Props {
@@ -39,12 +48,16 @@ function statusLabel(status: RoadmapNodeVM["status"]): string {
   switch (status) {
     case "completed":
       return "Selesai";
+    case "mastered":
+      return "Dikuasai";
     case "in-progress":
       return "Sedang dipelajari";
     case "recommended":
       return "Next";
     case "available":
       return "Siap dipelajari";
+    case "review_required":
+      return "Belajar";
     case "locked":
       return "Terkunci";
     default:
@@ -53,8 +66,16 @@ function statusLabel(status: RoadmapNodeVM["status"]): string {
 }
 
 function StatusIcon({ status }: { status: RoadmapNodeVM["status"] }) {
+  if (status === "mastered") {
+    return <Trophy size={18} className="text-[var(--success,#16a34a)]" />;
+  }
   if (status === "completed") {
     return <CheckCircle2 size={18} className="text-[var(--primary)]" />;
+  }
+  if (status === "review_required") {
+    return (
+      <PlayCircle size={18} className="text-[var(--vermillion,#e45e4f)]" />
+    );
   }
   if (status === "locked") {
     return <Lock size={18} className="text-[var(--muted)]" />;
@@ -73,6 +94,7 @@ export function DaoPage({ roadmaps }: Props) {
   const roadmapProgressById = useMadaraStore((s) => s.roadmapProgressById);
   const roadmapChoiceById = useMadaraStore((s) => s.roadmapChoiceById);
   const setRoadmapInProgress = useMadaraStore((s) => s.setRoadmapInProgress);
+  const completeRoadmapNode = useMadaraStore((s) => s.completeRoadmapNode);
 
   const roadmap = useMemo(
     () => roadmaps.find((r) => r.id === selectedPathRoadmapId) ?? null,
@@ -108,12 +130,77 @@ export function DaoPage({ roadmaps }: Props) {
     };
   }, [daoRoadmap, choiceSelection]);
 
+  const [progressionInput, setProgressionInput] =
+    useState<RoadmapProgressionInput | null>(null);
+  const [completedRecords, setCompletedRecords] = useState<
+    Array<{ roadmapId: string; completedAt: Date | null }>
+  >([]);
+
+  useEffect(() => {
+    if (!roadmap) {
+      setProgressionInput(null);
+      return;
+    }
+    let cancelled = false;
+    const nodeIds = roadmap.nodes.map((n) => n.id);
+    void getRoadmapProgressionContextAction({ roadmapId: roadmap.id, nodeIds })
+      .then((ctx) => {
+        if (cancelled) return;
+        setProgressionInput({
+          unlockRulesByNodeId: ctx.unlockRulesByNodeId,
+          branchChoices: ctx.branchChoices,
+          competencyMasteredIds: ctx.competencyMasteredIds,
+          competencyScores: ctx.competencyScores,
+          competencyStates: ctx.competencyStates,
+          passedAssessmentIds: ctx.passedAssessmentIds,
+          assessmentScores: ctx.assessmentScores,
+          masteredNodeIds: ctx.masteredNodeIds,
+          reviewRequiredNodeIds: ctx.reviewRequiredNodeIds,
+          nodeCompetenciesByNodeId: ctx.nodeCompetenciesByNodeId,
+          nodeResourcesByNodeId: ctx.nodeResourcesByNodeId,
+          nodeAssessmentsByNodeId: ctx.nodeAssessmentsByNodeId,
+        });
+      })
+      .catch(() => {
+        if (!cancelled) setProgressionInput(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [roadmap]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void listUserRoadmapRecordsAction()
+      .then((res) => {
+        if (cancelled) return;
+        setCompletedRecords(
+          (res.completed ?? []).map((r) => ({
+            roadmapId: r.roadmapId,
+            completedAt: r.completedAt ? new Date(r.completedAt) : null,
+          })),
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setCompletedRecords([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const nodes = useMemo(
     () =>
       daoRoadmapWithVariants
-        ? buildRoadmapNodeVMs(daoRoadmapWithVariants, progress)
+        ? buildRoadmapNodeVMsWithProgression(daoRoadmapWithVariants, progress, {
+            ...progressionInput,
+            branchChoices: {
+              ...(progressionInput?.branchChoices ?? {}),
+              ...choiceSelection,
+            },
+          })
         : [],
-    [daoRoadmapWithVariants, progress],
+    [daoRoadmapWithVariants, progress, choiceSelection, progressionInput],
   );
 
   const completion = useMemo(
@@ -124,13 +211,22 @@ export function DaoPage({ roadmaps }: Props) {
     [daoRoadmapWithVariants, progress],
   );
 
-  const nextNode = useMemo(
-    () =>
-      daoRoadmapWithVariants
-        ? getNextRecommendedNode(daoRoadmapWithVariants, progress)
-        : null,
-    [daoRoadmapWithVariants, progress],
-  );
+  const nextNode = useMemo(() => {
+    const guided = getGuidedRecommendation(
+      nodes.map((n, i) => ({
+        id: n.id,
+        title: n.title,
+        status: n.status,
+        estimatedDuration: n.estimatedDuration,
+        lessonKind: n.lessonInfo?.kind,
+        lessonHref: n.lessonInfo?.href,
+        isMilestone: n.category === "milestone",
+        order: i,
+      })),
+    );
+    if (!guided) return null;
+    return nodes.find((n) => n.id === guided.nodeId) ?? null;
+  }, [nodes]);
 
   const handleOpenNode = useCallback(
     (node: RoadmapNodeVM) => {
@@ -142,8 +238,20 @@ export function DaoPage({ roadmaps }: Props) {
     [roadmap, router, setRoadmapInProgress],
   );
 
-  const completedNodes = nodes.filter((n) => n.status === "completed");
-  const todoNodes = nodes.filter((n) => n.status !== "completed");
+  const handleCompleteNode = useCallback(
+    (node: RoadmapNodeVM) => {
+      if (!roadmap || node.status === "locked") return;
+      completeRoadmapNode(roadmap.id, node.id);
+    },
+    [completeRoadmapNode, roadmap],
+  );
+
+  const completedNodes = nodes.filter(
+    (n) => n.status === "completed" || n.status === "mastered",
+  );
+  const todoNodes = nodes.filter(
+    (n) => n.status !== "completed" && n.status !== "mastered",
+  );
 
   return (
     <section className="mx-auto max-w-[980px] space-y-4">
@@ -254,6 +362,16 @@ export function DaoPage({ roadmaps }: Props) {
             )}
           </Card>
 
+          <RoadmapRecommendedNext
+            node={nextNode}
+            onSelect={(id) => {
+              document
+                .getElementById(`dao-node-${id}`)
+                ?.scrollIntoView({ behavior: "smooth", block: "center" });
+            }}
+            onOpen={handleOpenNode}
+          />
+
           <Card className="p-4 sm:p-5">
             <div className="flex items-center justify-between gap-3">
               <div>
@@ -291,7 +409,8 @@ export function DaoPage({ roadmaps }: Props) {
             ) : (
               <ol className="mt-4 space-y-2">
                 {nodes.map((node, index) => {
-                  const done = node.status === "completed";
+                  const done =
+                    node.status === "completed" || node.status === "mastered";
                   const isNext = nextNode?.id === node.id;
                   const canOpen = node.status !== "locked";
                   const hasHref = Boolean(node.lessonInfo?.href);
@@ -303,7 +422,11 @@ export function DaoPage({ roadmaps }: Props) {
                     : null;
 
                   return (
-                    <li key={node.id}>
+                    <li
+                      key={node.id}
+                      id={`dao-node-${node.id}`}
+                      className="scroll-mt-24"
+                    >
                       <div
                         className={`flex items-start gap-3 rounded-xl border p-3 sm:p-4 ${
                           done
@@ -358,16 +481,32 @@ export function DaoPage({ roadmaps }: Props) {
                           </div>
                         </div>
 
-                        <div className="shrink-0">
+                        <div className="shrink-0 flex items-center gap-2">
                           {canOpen ? (
-                            <button
-                              type="button"
-                              onClick={() => handleOpenNode(node)}
-                              className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 text-xs font-bold text-[var(--ink)] hover:bg-[var(--bg)]"
-                            >
-                              <BookOpen size={14} />
-                              {hasHref ? (done ? "Review" : "Buka") : "Tandai"}
-                            </button>
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenNode(node)}
+                                className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 text-xs font-bold text-[var(--ink)] hover:bg-[var(--bg)]"
+                              >
+                                <BookOpen size={14} />
+                                {hasHref
+                                  ? done
+                                    ? "Review"
+                                    : "Buka"
+                                  : "Tandai"}
+                              </button>
+                              {!done ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleCompleteNode(node)}
+                                  className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg bg-[var(--primary)] px-3 text-xs font-bold text-white hover:opacity-95"
+                                >
+                                  <CheckCircle2 size={14} />
+                                  Done
+                                </button>
+                              ) : null}
+                            </>
                           ) : (
                             <span className="inline-flex min-h-[36px] items-center px-2 text-xs font-bold text-[var(--muted)]">
                               Terkunci
@@ -383,6 +522,57 @@ export function DaoPage({ roadmaps }: Props) {
           </Card>
         </>
       )}
+
+      <Card className="p-4 sm:p-5">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h3 className="text-base font-black text-[var(--ink)]">
+              Completed roadmaps
+            </h3>
+            <p className="text-sm text-[var(--muted)]">
+              Riwayat roadmap yang sudah diselesaikan (bisa banyak).
+            </p>
+          </div>
+          <span className="rounded-full bg-[var(--primary-soft)] px-2 py-0.5 text-[11px] font-black text-[var(--primary)]">
+            {completedRecords.length}
+          </span>
+        </div>
+        {completedRecords.length === 0 ? (
+          <p className="mt-3 text-sm text-[var(--muted)]">
+            Belum ada roadmap yang selesai. Selesaikan semua node yang
+            dibutuhkan untuk menandai roadmap completed.
+          </p>
+        ) : (
+          <ul className="mt-3 space-y-2">
+            {completedRecords.map((r) => {
+              const rm = roadmaps.find((x) => x.id === r.roadmapId);
+              return (
+                <li
+                  key={r.roadmapId}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-[var(--line)] bg-[var(--bg)] px-3 py-2"
+                >
+                  <div className="min-w-0">
+                    <div className="text-sm font-bold text-[var(--ink)] truncate">
+                      {rm?.title ?? r.roadmapId}
+                    </div>
+                    <div className="text-xs text-[var(--muted)]">
+                      {r.completedAt
+                        ? `Completed ${r.completedAt.toLocaleDateString()}`
+                        : "Completed"}
+                    </div>
+                  </div>
+                  <Link
+                    href="/roadmaps"
+                    className="text-xs font-bold text-[var(--primary)] shrink-0"
+                  >
+                    Open
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </Card>
     </section>
   );
 }

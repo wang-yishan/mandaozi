@@ -3,13 +3,21 @@ import {
   CheckCircle2,
   Lock,
   PlayCircle,
+  RotateCcw,
   Sparkles,
+  Trophy,
 } from "lucide-react";
 
 const ITEMS = [
   { label: "Completed", icon: CheckCircle2, color: "var(--success)" },
+  { label: "Mastered", icon: Trophy, color: "var(--success)" },
   { label: "In Progress", icon: PlayCircle, color: "var(--primary)" },
   { label: "Available", icon: BookOpen, color: "var(--muted)" },
+  {
+    label: "Review Required",
+    icon: RotateCcw,
+    color: "var(--warning,#b45309)",
+  },
   { label: "Locked", icon: Lock, color: "var(--muted)" },
   { label: "Recommended", icon: Sparkles, color: "var(--primary)" },
 ] as const;

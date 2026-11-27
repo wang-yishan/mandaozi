@@ -16,6 +16,7 @@
     "db:migrate": "drizzle-kit migrate --config drizzle.config.ts",
     "db:push": "drizzle-kit push --config drizzle.config.ts",
     "db:seed": "bun src/db/seed/index.ts",
+    "db:backfill": "bun src/db/backfill/run.ts",
     "db:studio": "drizzle-kit studio --config drizzle.config.ts",
     "db:reset": "rm -f data/m.db && bun run db:migrate && bun run db:seed"
   },

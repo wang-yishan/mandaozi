@@ -5,10 +5,8 @@ import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { RoadmapPathSelectButton } from "@/modules/roadmaps/components/roadmap-path-select-button";
 import type { RoadmapDef } from "@/modules/roadmaps/types/roadmap";
-import {
-  getNextRecommendedNode,
-  getRoadmapCompletion,
-} from "@/modules/roadmaps/utils/roadmap-progress";
+import { getRoadmapCompletion } from "@/modules/roadmaps/utils/roadmap-progress";
+import { buildRoadmapNodeVMsWithProgression } from "@/modules/roadmaps/utils/roadmap-progression-adapter";
 import { useMadaraStore } from "@/store/madara-store";
 
 interface Props {
@@ -18,6 +16,7 @@ interface Props {
 export function PathSelectedSidebar({ roadmaps }: Props) {
   const selectedPathRoadmapId = useMadaraStore((s) => s.selectedPathRoadmapId);
   const roadmapProgressById = useMadaraStore((s) => s.roadmapProgressById);
+  const roadmapChoiceById = useMadaraStore((s) => s.roadmapChoiceById);
 
   const activeRoadmap =
     roadmaps.find((r) => r.id === selectedPathRoadmapId) ?? null;
@@ -28,9 +27,18 @@ export function PathSelectedSidebar({ roadmaps }: Props) {
   const completion = activeRoadmap
     ? getRoadmapCompletion(activeRoadmap, progress)
     : null;
-  const nextNode = activeRoadmap
-    ? getNextRecommendedNode(activeRoadmap, progress)
-    : null;
+  const nodes = activeRoadmap
+    ? buildRoadmapNodeVMsWithProgression(activeRoadmap, progress, {
+        branchChoices: roadmapChoiceById[activeRoadmap.id] ?? {},
+      })
+    : [];
+  const nextNode =
+    nodes.find(
+      (n) =>
+        n.status === "recommended" ||
+        n.status === "in-progress" ||
+        n.status === "review_required",
+    ) ?? null;
 
   return (
     <aside className="space-y-3" aria-labelledby="path-selected-title">

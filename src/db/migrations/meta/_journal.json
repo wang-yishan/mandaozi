@@ -29,6 +29,13 @@
       "when": 1795753541773,
       "tag": "0003_gifted_nicolaos",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1795774673760,
+      "tag": "0004_dry_ghost_rider",
+      "breakpoints": true
     }
   ]
 }

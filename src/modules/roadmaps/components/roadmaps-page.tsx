@@ -2,8 +2,10 @@
 
 import { Map as MapIcon } from "lucide-react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { listUserRoadmapRecordsAction } from "@/app/actions/roadmap";
 import { PageSubnav } from "@/components/layout/page-subnav";
 import { Card } from "@/components/ui/card";
 import { useMadaraStore } from "@/store/madara-store";
@@ -37,6 +39,29 @@ export function RoadmapsPage({
   const router = useRouter();
   const [selectedRoadmapId, setSelectedRoadmapId] = useState(defaultRoadmapId);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [completedRecords, setCompletedRecords] = useState<
+    Array<{ roadmapId: string; completedAt: Date | null }>
+  >([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void listUserRoadmapRecordsAction()
+      .then((res) => {
+        if (cancelled) return;
+        setCompletedRecords(
+          (res.completed ?? []).map((r) => ({
+            roadmapId: r.roadmapId,
+            completedAt: r.completedAt ? new Date(r.completedAt) : null,
+          })),
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setCompletedRecords([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const roadmap = useMemo(
     () => roadmaps.find((r) => r.id === selectedRoadmapId) ?? roadmaps[0],
@@ -55,6 +80,7 @@ export function RoadmapsPage({
   const selectedPathRoadmapId = useMadaraStore((s) => s.selectedPathRoadmapId);
   const roadmapChoiceById = useMadaraStore((s) => s.roadmapChoiceById);
   const setRoadmapNodeChoice = useMadaraStore((s) => s.setRoadmapNodeChoice);
+  const completeRoadmapNode = useMadaraStore((s) => s.completeRoadmapNode);
 
   const choiceSelection = useMemo(
     () => roadmapChoiceById[roadmap.id] ?? {},
@@ -81,6 +107,14 @@ export function RoadmapsPage({
       router.push(href);
     },
     [roadmap.id, router, setRoadmapInProgress],
+  );
+
+  const handleCompleteNode = useCallback(
+    (node: RoadmapNodeVM) => {
+      if (node.status === "locked") return;
+      completeRoadmapNode(roadmap.id, node.id);
+    },
+    [completeRoadmapNode, roadmap.id],
   );
 
   const handleSelectNode = useCallback((nodeId: string | null) => {
@@ -211,10 +245,61 @@ export function RoadmapsPage({
           onChoiceChange={handleChoiceChange}
           onClose={() => setSelectedNodeId(null)}
           onOpen={handleOpenNode}
+          onComplete={handleCompleteNode}
         />
       </div>
 
       <RoadmapSilabus roadmap={roadmap} />
+
+      <Card className="p-4 sm:p-5">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h3 className="text-base font-black text-[var(--ink)]">
+              Completed roadmaps
+            </h3>
+            <p className="text-sm text-[var(--muted)]">
+              Riwayat roadmap yang sudah diselesaikan.
+            </p>
+          </div>
+          <span className="rounded-full bg-[var(--primary-soft)] px-2 py-0.5 text-[11px] font-black text-[var(--primary)]">
+            {completedRecords.length}
+          </span>
+        </div>
+        {completedRecords.length === 0 ? (
+          <p className="mt-3 text-sm text-[var(--muted)]">
+            Belum ada roadmap selesai.
+          </p>
+        ) : (
+          <ul className="mt-3 space-y-2">
+            {completedRecords.map((r) => {
+              const rm = roadmaps.find((x) => x.id === r.roadmapId);
+              return (
+                <li
+                  key={r.roadmapId}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-[var(--line)] bg-[var(--bg)] px-3 py-2"
+                >
+                  <div className="min-w-0">
+                    <div className="text-sm font-bold text-[var(--ink)] truncate">
+                      {rm?.title ?? r.roadmapId}
+                    </div>
+                    <div className="text-xs text-[var(--muted)]">
+                      {r.completedAt
+                        ? `Completed ${r.completedAt.toLocaleDateString()}`
+                        : "Completed"}
+                    </div>
+                  </div>
+                  <Link
+                    href="/roadmaps"
+                    className="text-xs font-bold text-[var(--primary)] shrink-0"
+                  >
+                    Open
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </Card>
     </section>
   );
 }

@@ -24,7 +24,11 @@ export type RoadmapPreviewStatus =
   | "completed"
   | "current"
   | "available"
-  | "locked";
+  | "locked"
+  | "mastered"
+  | "review_required"
+  | "in-progress"
+  | "recommended";
 
 export interface RoadmapPreviewNode {
   id: string;
