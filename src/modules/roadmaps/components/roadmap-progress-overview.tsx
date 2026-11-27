@@ -2,7 +2,12 @@ import { Card } from "@/components/ui/card";
 import type { RoadmapNodeDef } from "../types/roadmap";
 
 interface Props {
-  completion: { completed: number; total: number; percentage: number };
+  completion: {
+    completed: number;
+    total: number;
+    percentage: number;
+    isCompleted: boolean;
+  };
   currentStage: string;
   nextNode: RoadmapNodeDef | null;
 }
@@ -50,21 +55,27 @@ export function RoadmapProgressOverview({
           {currentStage}
         </div>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          Based on your roadmap progress
+          {completion.isCompleted
+            ? "Perjalanan dao selesai — roadmap ini telah dikuasai."
+            : "Based on your roadmap progress"}
         </p>
       </Card>
 
       <Card className="p-4">
         <div className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">
-          Next Recommended
+          {completion.isCompleted ? "Status" : "Next Recommended"}
         </div>
         <div className="mt-2 text-lg font-black leading-snug">
-          {nextNode?.title ?? "All done"}
+          {completion.isCompleted
+            ? "Completed"
+            : (nextNode?.title ?? "All done")}
         </div>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          {nextNode
-            ? nextNode.estimatedDuration
-            : "You’ve completed this roadmap"}
+          {completion.isCompleted
+            ? "Roadmap selesai. Kamu tetap bisa membukanya kembali."
+            : nextNode
+              ? nextNode.estimatedDuration
+              : "You’ve completed this roadmap"}
         </p>
       </Card>
     </div>

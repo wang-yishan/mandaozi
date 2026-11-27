@@ -38,6 +38,7 @@ function getMadaraSnapshot(): MadaraPersistedState {
     sidebarCollapsed: s.sidebarCollapsed,
     moreMenuLayout: s.moreMenuLayout,
     roadmapProgressById: s.roadmapProgressById,
+    selectedPathRoadmapId: s.selectedPathRoadmapId,
   };
 }
 
@@ -89,6 +90,10 @@ function readLocalMadara(): MadaraPersistedState | null {
         typeof state.roadmapProgressById === "object"
           ? state.roadmapProgressById
           : {},
+      selectedPathRoadmapId:
+        typeof state.selectedPathRoadmapId === "string"
+          ? state.selectedPathRoadmapId
+          : null,
     };
   } catch {
     return null;

@@ -12,9 +12,12 @@ import {
 import { useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import type { RoadmapNodeVM } from "../types/roadmap";
+import { RoadmapNodeChoicePicker } from "./roadmap-node-choice-picker";
 
 interface Props {
   node: RoadmapNodeVM | null;
+  selectedChoiceId?: string | null;
+  onChoiceChange?: (nodeId: string, choiceId: string | null) => void;
   onClose: () => void;
   onOpen: (node: RoadmapNodeVM) => void;
 }
@@ -27,7 +30,13 @@ const STATUS_LABEL: Record<RoadmapNodeVM["status"], string> = {
   recommended: "Recommended",
 };
 
-export function RoadmapDetailPanel({ node, onClose, onOpen }: Props) {
+export function RoadmapDetailPanel({
+  node,
+  selectedChoiceId = null,
+  onChoiceChange,
+  onClose,
+  onOpen,
+}: Props) {
   useEffect(() => {
     if (!node) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -134,6 +143,28 @@ export function RoadmapDetailPanel({ node, onClose, onOpen }: Props) {
             </div>
           </div>
         </div>
+
+        {node.choices?.length ? (
+          <div className="mt-4 rounded-xl border border-[var(--line)] bg-[var(--bg)] p-4">
+            <RoadmapNodeChoicePicker
+              node={node}
+              selectedChoiceId={selectedChoiceId}
+              onChange={(choiceId) => onChoiceChange?.(node.id, choiceId)}
+            />
+            {selectedChoiceId ? (
+              <p className="mt-3 text-xs text-[var(--muted)]">
+                Varian terpilih akan diterapkan pada tampilan{" "}
+                <span className="font-bold text-[var(--ink)]">Dao</span>.
+                Diagram roadmap tetap menampilkan semua node.
+              </p>
+            ) : (
+              <p className="mt-3 text-xs text-[var(--muted)]">
+                Pilih varian untuk mengkondisikan arah pembelajaran di{" "}
+                <span className="font-bold text-[var(--ink)]">Dao</span>.
+              </p>
+            )}
+          </div>
+        ) : null}
 
         <div className="mt-4">
           <div className="flex items-center gap-2 text-sm font-black">

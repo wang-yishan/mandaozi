@@ -1,4 +1,4 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 
 const publicPaths = ["/login", "/signup", "/api/auth"];
 
@@ -8,7 +8,7 @@ function isPublicPath(pathname: string) {
   );
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (
@@ -33,13 +33,6 @@ export function middleware(request: NextRequest) {
       loginUrl.searchParams.set("next", next);
     }
     return NextResponse.redirect(loginUrl);
-  }
-
-  if (sessionToken && (pathname === "/login" || pathname === "/signup")) {
-    const next = request.nextUrl.searchParams.get("next");
-    const safeNext =
-      next && next.startsWith("/") && !next.startsWith("//") ? next : "/home";
-    return NextResponse.redirect(new URL(safeNext, request.url));
   }
 
   return NextResponse.next();

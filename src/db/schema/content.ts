@@ -62,6 +62,10 @@ export const roadmaps = sqliteTable("roadmaps", {
   title: text("title").notNull(),
   description: text("description").notNull(),
   sortOrder: integer("sort_order").notNull().default(0),
+  /** JSON string of RoadmapSilabusDef (silabus per roadmap). */
+  silabusJson: text("silabus_json"),
+  /** Opsional: kaitan ke World category. */
+  worldCategoryId: text("world_category_id"),
 });
 
 export const roadmapNodes = sqliteTable(

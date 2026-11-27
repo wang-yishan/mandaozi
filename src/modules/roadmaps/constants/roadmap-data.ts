@@ -19,6 +19,23 @@ export const ROADMAPS: RoadmapDef[] = [
           label: "Overview lesson",
           kind: "lesson",
         },
+        choices: [
+          {
+            id: "intro-mandarin-standar",
+            label: "Standar",
+            description: "Varian node standar untuk jalur utama.",
+          },
+          {
+            id: "intro-mandarin-pendalaman",
+            label: "Pendalaman",
+            description: "Varian node dengan pendalaman materi di Dao.",
+            variant: {
+              title: "Introduction to Mandarin (Pendalaman)",
+              estimatedDuration: "10 min",
+            },
+          },
+        ],
+
         position: { x: 460, y: 0 },
       },
       {
@@ -33,6 +50,23 @@ export const ROADMAPS: RoadmapDef[] = [
           label: "Pronunciation basics",
           kind: "lesson",
         },
+        choices: [
+          {
+            id: "pronunciation-foundation-standar",
+            label: "Standar",
+            description: "Varian node standar untuk jalur utama.",
+          },
+          {
+            id: "pronunciation-foundation-pendalaman",
+            label: "Pendalaman",
+            description: "Varian node dengan pendalaman materi di Dao.",
+            variant: {
+              title: "Pronunciation Foundation (Pendalaman)",
+              estimatedDuration: "15 min",
+            },
+          },
+        ],
+
         position: { x: 460, y: 240 },
       },
       {
@@ -48,6 +82,23 @@ export const ROADMAPS: RoadmapDef[] = [
           kind: "practice",
           href: "/practice/pinyin-zhuyin",
         },
+        choices: [
+          {
+            id: "pinyin-standar",
+            label: "Standar",
+            description: "Varian node standar untuk jalur utama.",
+          },
+          {
+            id: "pinyin-pendalaman",
+            label: "Pendalaman",
+            description: "Varian node dengan pendalaman materi di Dao.",
+            variant: {
+              title: "Pinyin (Pendalaman)",
+              estimatedDuration: "20 min",
+            },
+          },
+        ],
+
         position: { x: 40, y: 500 },
       },
       {
@@ -63,6 +114,23 @@ export const ROADMAPS: RoadmapDef[] = [
           kind: "practice",
           href: "/practice/pinyin-zhuyin",
         },
+        choices: [
+          {
+            id: "zhuyin-standar",
+            label: "Standar",
+            description: "Varian node standar untuk jalur utama.",
+          },
+          {
+            id: "zhuyin-pendalaman",
+            label: "Pendalaman",
+            description: "Varian node dengan pendalaman materi di Dao.",
+            variant: {
+              title: "Zhuyin (Pendalaman)",
+              estimatedDuration: "20 min",
+            },
+          },
+        ],
+
         position: { x: 460, y: 500 },
       },
       {
@@ -78,6 +146,23 @@ export const ROADMAPS: RoadmapDef[] = [
           kind: "practice",
           href: "/practice/tone",
         },
+        choices: [
+          {
+            id: "tones-standar",
+            label: "Standar",
+            description: "Varian node standar untuk jalur utama.",
+          },
+          {
+            id: "tones-pendalaman",
+            label: "Pendalaman",
+            description: "Varian node dengan pendalaman materi di Dao.",
+            variant: {
+              title: "Mandarin Tones (Pendalaman)",
+              estimatedDuration: "20 min",
+            },
+          },
+        ],
+
         position: { x: 880, y: 500 },
       },
       {
@@ -92,6 +177,23 @@ export const ROADMAPS: RoadmapDef[] = [
           label: "Syllable builder",
           kind: "lesson",
         },
+        choices: [
+          {
+            id: "syllable-formation-standar",
+            label: "Standar",
+            description: "Varian node standar untuk jalur utama.",
+          },
+          {
+            id: "syllable-formation-pendalaman",
+            label: "Pendalaman",
+            description: "Varian node dengan pendalaman materi di Dao.",
+            variant: {
+              title: "Syllable Formation (Pendalaman)",
+              estimatedDuration: "15 min",
+            },
+          },
+        ],
+
         position: { x: 460, y: 760 },
       },
       {
@@ -107,6 +209,23 @@ export const ROADMAPS: RoadmapDef[] = [
           kind: "lesson",
           href: "/dictionary/all",
         },
+        choices: [
+          {
+            id: "basic-vocabulary-standar",
+            label: "Standar",
+            description: "Varian node standar untuk jalur utama.",
+          },
+          {
+            id: "basic-vocabulary-pendalaman",
+            label: "Pendalaman",
+            description: "Varian node dengan pendalaman materi di Dao.",
+            variant: {
+              title: "Basic Vocabulary (Pendalaman)",
+              estimatedDuration: "25 min",
+            },
+          },
+        ],
+
         position: { x: 460, y: 1020 },
       },
       {
@@ -121,6 +240,30 @@ export const ROADMAPS: RoadmapDef[] = [
           label: "Grammar guide",
           kind: "lesson",
         },
+        choices: [
+          {
+            id: "grammar-standar",
+            label: "Jalur Standar",
+            description: "Ikuti urutan grammar lengkap termasuk reading.",
+            variant: {
+              title: "Basic Grammar",
+              estimatedDuration: "25 min",
+            },
+          },
+          {
+            id: "grammar-fokus-speaking",
+            label: "Jalur Fokus Speaking",
+            description:
+              "Varian node untuk fokus bicara; di Dao, reading practice dilewati.",
+            variant: {
+              title: "Basic Grammar (Speaking Focus)",
+              description:
+                "Fokus pola kalimat untuk percakapan lisan. Reading practice dapat dilewati di Dao.",
+              estimatedDuration: "20 min",
+            },
+            excludesNodeIds: ["reading-practice"],
+          },
+        ],
         position: { x: 140, y: 1280 },
       },
       {
@@ -136,6 +279,25 @@ export const ROADMAPS: RoadmapDef[] = [
           kind: "practice",
           href: "/practice/listening",
         },
+        choices: [
+          {
+            id: "listening-standar",
+            label: "Jalur Standar",
+            description: "Latihan listening umum.",
+          },
+          {
+            id: "listening-intensif",
+            label: "Jalur Intensif",
+            description:
+              "Varian node dengan fokus listening lebih dalam di Dao.",
+            variant: {
+              title: "Listening Practice (Intensif)",
+              estimatedDuration: "30 min",
+              description:
+                "Latihan listening intensif dengan fokus nada dan frasa sehari-hari.",
+            },
+          },
+        ],
         position: { x: 780, y: 1280 },
       },
       {
@@ -150,6 +312,23 @@ export const ROADMAPS: RoadmapDef[] = [
           label: "Reading practice",
           kind: "practice",
         },
+        choices: [
+          {
+            id: "reading-practice-standar",
+            label: "Standar",
+            description: "Varian node standar untuk jalur utama.",
+          },
+          {
+            id: "reading-practice-pendalaman",
+            label: "Pendalaman",
+            description: "Varian node dengan pendalaman materi di Dao.",
+            variant: {
+              title: "Reading Practice (Pendalaman)",
+              estimatedDuration: "20 min",
+            },
+          },
+        ],
+
         position: { x: 140, y: 1540 },
       },
       {
@@ -164,6 +343,23 @@ export const ROADMAPS: RoadmapDef[] = [
           label: "Sentence builder",
           kind: "lesson",
         },
+        choices: [
+          {
+            id: "sentence-building-standar",
+            label: "Standar",
+            description: "Varian node standar untuk jalur utama.",
+          },
+          {
+            id: "sentence-building-pendalaman",
+            label: "Pendalaman",
+            description: "Varian node dengan pendalaman materi di Dao.",
+            variant: {
+              title: "Sentence Building (Pendalaman)",
+              estimatedDuration: "25 min",
+            },
+          },
+        ],
+
         position: { x: 780, y: 1540 },
       },
       {
@@ -178,6 +374,23 @@ export const ROADMAPS: RoadmapDef[] = [
           label: "Beginner assessment",
           kind: "assessment",
         },
+        choices: [
+          {
+            id: "beginner-assessment-standar",
+            label: "Standar",
+            description: "Varian node standar untuk jalur utama.",
+          },
+          {
+            id: "beginner-assessment-pendalaman",
+            label: "Pendalaman",
+            description: "Varian node dengan pendalaman materi di Dao.",
+            variant: {
+              title: "Beginner Assessment (Pendalaman)",
+              estimatedDuration: "20 min",
+            },
+          },
+        ],
+
         position: { x: 460, y: 1800 },
       },
       {
@@ -192,6 +405,23 @@ export const ROADMAPS: RoadmapDef[] = [
           label: "Start HSK 1 path",
           kind: "lesson",
         },
+        choices: [
+          {
+            id: "hsk1-path-standar",
+            label: "Standar",
+            description: "Varian node standar untuk jalur utama.",
+          },
+          {
+            id: "hsk1-path-pendalaman",
+            label: "Pendalaman",
+            description: "Varian node dengan pendalaman materi di Dao.",
+            variant: {
+              title: "HSK 1 Learning Path (Pendalaman)",
+              estimatedDuration: "Ongoing",
+            },
+          },
+        ],
+
         position: { x: 460, y: 2060 },
       },
     ],

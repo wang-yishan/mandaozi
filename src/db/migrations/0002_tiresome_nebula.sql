@@ -1,0 +1,1 @@
+ALTER TABLE `user_profiles` ADD `selected_path_roadmap_id` text;

@@ -10,8 +10,8 @@ import {
   userProfiles,
   userProgress,
   userRoadmapNodeProgress,
-  userTaskCompletions,
   users,
+  userTaskCompletions,
 } from "../schema";
 
 export interface MadaraPersistedState {
@@ -39,6 +39,7 @@ export interface MadaraPersistedState {
     string,
     { completedNodeIds: string[]; inProgressNodeId: string | null }
   >;
+  selectedPathRoadmapId: string | null;
 }
 
 export interface PhonicsPersistedState {
@@ -93,7 +94,9 @@ export function ensureUserRows(userId: string) {
     .run();
 }
 
-export function getMadaraPersistedState(userId: string): MadaraPersistedState | null {
+export function getMadaraPersistedState(
+  userId: string,
+): MadaraPersistedState | null {
   const profile = db
     .select()
     .from(userProfiles)
@@ -135,7 +138,8 @@ export function getMadaraPersistedState(userId: string): MadaraPersistedState | 
       inProgressNodeId: null,
     };
     if (r.status === "completed") {
-      if (!entry.completedNodeIds.includes(r.nodeId)) entry.completedNodeIds.push(r.nodeId);
+      if (!entry.completedNodeIds.includes(r.nodeId))
+        entry.completedNodeIds.push(r.nodeId);
     } else if (r.status === "in-progress") {
       entry.inProgressNodeId = r.nodeId;
     }
@@ -152,11 +156,13 @@ export function getMadaraPersistedState(userId: string): MadaraPersistedState | 
     tasksDone: taskRows.map((r) => r.taskId),
     claimedDailyReward: progress?.claimedDailyReward ?? false,
     completedLessons: lessonRows.map((r) => r.lessonKey),
-    themeMode: (profile?.themeMode as MadaraPersistedState["themeMode"]) ?? "light",
+    themeMode:
+      (profile?.themeMode as MadaraPersistedState["themeMode"]) ?? "light",
     goal: (profile?.goal as MadaraPersistedState["goal"]) ?? "Conversation",
     level:
       (profile?.level as MadaraPersistedState["level"]) ?? "Beginner · HSK 1–2",
-    dailyGoal: (profile?.dailyGoalMin as MadaraPersistedState["dailyGoal"]) ?? 10,
+    dailyGoal:
+      (profile?.dailyGoalMin as MadaraPersistedState["dailyGoal"]) ?? 10,
     reminders: profile?.reminders ?? true,
     sound: profile?.sound ?? true,
     language:
@@ -166,35 +172,24 @@ export function getMadaraPersistedState(userId: string): MadaraPersistedState | 
     intensiveEnrolled: profile?.intensiveEnrolled ?? false,
     sidebarCollapsed: profile?.sidebarCollapsed ?? false,
     moreMenuLayout:
-      (profile?.moreMenuLayout as MadaraPersistedState["moreMenuLayout"]) ?? "grid-2",
+      (profile?.moreMenuLayout as MadaraPersistedState["moreMenuLayout"]) ??
+      "grid-2",
     roadmapProgressById,
+    selectedPathRoadmapId: profile?.selectedPathRoadmapId ?? null,
   };
 }
 
-export function saveMadaraPersistedState(userId: string, state: MadaraPersistedState) {
+export function saveMadaraPersistedState(
+  userId: string,
+  state: MadaraPersistedState,
+) {
   const now = new Date();
 
   db.transaction((tx) => {
-  tx.insert(userProfiles)
-    .values({
-      userId: userId,
-      displayName: null,
-      goal: state.goal,
-      level: state.level,
-      dailyGoalMin: state.dailyGoal,
-      language: state.language,
-      themeMode: state.themeMode,
-      reminders: state.reminders,
-      sound: state.sound,
-      onboardingDone: state.onboardingDone,
-      intensiveEnrolled: state.intensiveEnrolled,
-      sidebarCollapsed: state.sidebarCollapsed,
-      moreMenuLayout: state.moreMenuLayout,
-      updatedAt: now,
-    })
-    .onConflictDoUpdate({
-      target: userProfiles.userId,
-      set: {
+    tx.insert(userProfiles)
+      .values({
+        userId: userId,
+        displayName: null,
         goal: state.goal,
         level: state.level,
         dailyGoalMin: state.dailyGoal,
@@ -206,25 +201,32 @@ export function saveMadaraPersistedState(userId: string, state: MadaraPersistedS
         intensiveEnrolled: state.intensiveEnrolled,
         sidebarCollapsed: state.sidebarCollapsed,
         moreMenuLayout: state.moreMenuLayout,
+        selectedPathRoadmapId: state.selectedPathRoadmapId,
         updatedAt: now,
-      },
-    })
-    .run();
+      })
+      .onConflictDoUpdate({
+        target: userProfiles.userId,
+        set: {
+          goal: state.goal,
+          level: state.level,
+          dailyGoalMin: state.dailyGoal,
+          language: state.language,
+          themeMode: state.themeMode,
+          reminders: state.reminders,
+          sound: state.sound,
+          onboardingDone: state.onboardingDone,
+          intensiveEnrolled: state.intensiveEnrolled,
+          sidebarCollapsed: state.sidebarCollapsed,
+          moreMenuLayout: state.moreMenuLayout,
+          selectedPathRoadmapId: state.selectedPathRoadmapId,
+          updatedAt: now,
+        },
+      })
+      .run();
 
-  tx.insert(userProgress)
-    .values({
-      userId: userId,
-      xp: state.xp,
-      wordsMastered: state.wordsMastered,
-      lessonsCompleted: state.lessonsCompleted,
-      streakDays: state.streakDays,
-      accuracy: state.accuracy,
-      claimedDailyReward: state.claimedDailyReward,
-      updatedAt: now,
-    })
-    .onConflictDoUpdate({
-      target: userProgress.userId,
-      set: {
+    tx.insert(userProgress)
+      .values({
+        userId: userId,
         xp: state.xp,
         wordsMastered: state.wordsMastered,
         lessonsCompleted: state.lessonsCompleted,
@@ -232,72 +234,85 @@ export function saveMadaraPersistedState(userId: string, state: MadaraPersistedS
         accuracy: state.accuracy,
         claimedDailyReward: state.claimedDailyReward,
         updatedAt: now,
-      },
-    })
-    .run();
-
-  // Replace favorites
-  tx.delete(userFavorites).where(eq(userFavorites.userId, userId)).run();
-  for (const hanzi of state.favorites) {
-    tx.insert(userFavorites)
-      .values({ userId: userId, hanzi, vocabularyId: null, createdAt: now })
-      .onConflictDoNothing()
-      .run();
-  }
-
-  tx.delete(userTaskCompletions)
-    .where(eq(userTaskCompletions.userId, userId))
-    .run();
-  for (const taskId of state.tasksDone) {
-    tx.insert(userTaskCompletions)
-      .values({ userId: userId, taskId, xpAwarded: 0, completedAt: now })
-      .onConflictDoNothing()
-      .run();
-  }
-
-  tx.delete(userLessonCompletions)
-    .where(eq(userLessonCompletions.userId, userId))
-    .run();
-  for (const lessonKey of state.completedLessons) {
-    tx.insert(userLessonCompletions)
-      .values({ userId: userId, lessonKey, xpAwarded: 0, completedAt: now })
-      .onConflictDoNothing()
-      .run();
-  }
-
-  tx.delete(userRoadmapNodeProgress)
-    .where(eq(userRoadmapNodeProgress.userId, userId))
-    .run();
-  for (const [roadmapId, rp] of Object.entries(state.roadmapProgressById)) {
-    for (const nodeId of rp.completedNodeIds) {
-      tx.insert(userRoadmapNodeProgress)
-        .values({
-          userId: userId,
-          roadmapId,
-          nodeId,
-          status: "completed",
+      })
+      .onConflictDoUpdate({
+        target: userProgress.userId,
+        set: {
+          xp: state.xp,
+          wordsMastered: state.wordsMastered,
+          lessonsCompleted: state.lessonsCompleted,
+          streakDays: state.streakDays,
+          accuracy: state.accuracy,
+          claimedDailyReward: state.claimedDailyReward,
           updatedAt: now,
-        })
+        },
+      })
+      .run();
+
+    // Replace favorites
+    tx.delete(userFavorites).where(eq(userFavorites.userId, userId)).run();
+    for (const hanzi of state.favorites) {
+      tx.insert(userFavorites)
+        .values({ userId: userId, hanzi, vocabularyId: null, createdAt: now })
         .onConflictDoNothing()
         .run();
     }
-    if (rp.inProgressNodeId) {
-      tx.insert(userRoadmapNodeProgress)
-        .values({
-          userId: userId,
-          roadmapId,
-          nodeId: rp.inProgressNodeId,
-          status: "in-progress",
-          updatedAt: now,
-        })
+
+    tx.delete(userTaskCompletions)
+      .where(eq(userTaskCompletions.userId, userId))
+      .run();
+    for (const taskId of state.tasksDone) {
+      tx.insert(userTaskCompletions)
+        .values({ userId: userId, taskId, xpAwarded: 0, completedAt: now })
         .onConflictDoNothing()
         .run();
     }
-  }
+
+    tx.delete(userLessonCompletions)
+      .where(eq(userLessonCompletions.userId, userId))
+      .run();
+    for (const lessonKey of state.completedLessons) {
+      tx.insert(userLessonCompletions)
+        .values({ userId: userId, lessonKey, xpAwarded: 0, completedAt: now })
+        .onConflictDoNothing()
+        .run();
+    }
+
+    tx.delete(userRoadmapNodeProgress)
+      .where(eq(userRoadmapNodeProgress.userId, userId))
+      .run();
+    for (const [roadmapId, rp] of Object.entries(state.roadmapProgressById)) {
+      for (const nodeId of rp.completedNodeIds) {
+        tx.insert(userRoadmapNodeProgress)
+          .values({
+            userId: userId,
+            roadmapId,
+            nodeId,
+            status: "completed",
+            updatedAt: now,
+          })
+          .onConflictDoNothing()
+          .run();
+      }
+      if (rp.inProgressNodeId) {
+        tx.insert(userRoadmapNodeProgress)
+          .values({
+            userId: userId,
+            roadmapId,
+            nodeId: rp.inProgressNodeId,
+            status: "in-progress",
+            updatedAt: now,
+          })
+          .onConflictDoNothing()
+          .run();
+      }
+    }
   });
 }
 
-export function getPhonicsPersistedState(userId: string): PhonicsPersistedState | null {
+export function getPhonicsPersistedState(
+  userId: string,
+): PhonicsPersistedState | null {
   const settings = db
     .select()
     .from(userPhonicsSettings)
@@ -319,20 +334,27 @@ export function getPhonicsPersistedState(userId: string): PhonicsPersistedState 
     .where(eq(phonicsIncorrectAnswers.userId, userId))
     .all();
 
-  if (!settings && lessonRows.length === 0 && symbolRows.length === 0 && incorrectRows.length === 0) {
+  if (
+    !settings &&
+    lessonRows.length === 0 &&
+    symbolRows.length === 0 &&
+    incorrectRows.length === 0
+  ) {
     return null;
   }
 
   const lessonProgress: PhonicsPersistedState["lessonProgress"] = {};
   for (const r of lessonRows) {
     lessonProgress[r.lessonId] = {
-      status: r.status as PhonicsPersistedState["lessonProgress"][string]["status"],
+      status:
+        r.status as PhonicsPersistedState["lessonProgress"][string]["status"],
       bestScore: r.bestScore,
       lastScore: r.lastScore,
       accuracy: r.accuracy,
       attempts: r.attempts,
       completedAt: r.completedAt ?? undefined,
-      mastery: r.mastery as PhonicsPersistedState["lessonProgress"][string]["mastery"],
+      mastery:
+        r.mastery as PhonicsPersistedState["lessonProgress"][string]["mastery"],
       incorrectExerciseIds: (r.incorrectExerciseIds as string[]) ?? [],
     };
   }
@@ -340,7 +362,8 @@ export function getPhonicsPersistedState(userId: string): PhonicsPersistedState 
   const symbolProgress: PhonicsPersistedState["symbolProgress"] = {};
   for (const r of symbolRows) {
     symbolProgress[r.symbolId] = {
-      mastery: r.mastery as PhonicsPersistedState["symbolProgress"][string]["mastery"],
+      mastery:
+        r.mastery as PhonicsPersistedState["symbolProgress"][string]["mastery"],
       correct: r.correct,
       incorrect: r.incorrect,
       lastReviewedAt: r.lastReviewedAt ?? undefined,
@@ -348,10 +371,13 @@ export function getPhonicsPersistedState(userId: string): PhonicsPersistedState 
   }
 
   return {
-    displayMode: (settings?.displayMode as PhonicsPersistedState["displayMode"]) ?? "both",
+    displayMode:
+      (settings?.displayMode as PhonicsPersistedState["displayMode"]) ?? "both",
     selectedAccent:
-      (settings?.selectedAccent as PhonicsPersistedState["selectedAccent"]) ?? "putonghua",
-    playbackRate: (settings?.playbackRate as PhonicsPersistedState["playbackRate"]) ?? 1,
+      (settings?.selectedAccent as PhonicsPersistedState["selectedAccent"]) ??
+      "putonghua",
+    playbackRate:
+      (settings?.playbackRate as PhonicsPersistedState["playbackRate"]) ?? 1,
     lessonProgress,
     symbolProgress,
     incorrectAnswers: incorrectRows.map((r) => ({
@@ -369,91 +395,94 @@ export function getPhonicsPersistedState(userId: string): PhonicsPersistedState 
   };
 }
 
-export function savePhonicsPersistedState(userId: string, state: PhonicsPersistedState) {
+export function savePhonicsPersistedState(
+  userId: string,
+  state: PhonicsPersistedState,
+) {
   const now = new Date();
 
   db.transaction((tx) => {
-  tx.insert(userPhonicsSettings)
-    .values({
-      userId: userId,
-      displayMode: state.displayMode,
-      selectedAccent: state.selectedAccent,
-      playbackRate: state.playbackRate,
-      totalXp: state.totalXp,
-      updatedAt: now,
-    })
-    .onConflictDoUpdate({
-      target: userPhonicsSettings.userId,
-      set: {
+    tx.insert(userPhonicsSettings)
+      .values({
+        userId: userId,
         displayMode: state.displayMode,
         selectedAccent: state.selectedAccent,
         playbackRate: state.playbackRate,
         totalXp: state.totalXp,
         updatedAt: now,
-      },
-    })
-    .run();
-
-  tx.delete(phonicsLessonProgress)
-    .where(eq(phonicsLessonProgress.userId, userId))
-    .run();
-  for (const [lessonId, p] of Object.entries(state.lessonProgress)) {
-    tx.insert(phonicsLessonProgress)
-      .values({
-        userId: userId,
-        lessonId,
-        status: p.status,
-        bestScore: p.bestScore,
-        lastScore: p.lastScore,
-        accuracy: p.accuracy,
-        attempts: p.attempts,
-        completedAt: p.completedAt ?? null,
-        mastery: p.mastery,
-        incorrectExerciseIds: p.incorrectExerciseIds,
-        updatedAt: now,
       })
-      .onConflictDoNothing()
-      .run();
-  }
-
-  tx.delete(phonicsSymbolProgress)
-    .where(eq(phonicsSymbolProgress.userId, userId))
-    .run();
-  for (const [symbolId, p] of Object.entries(state.symbolProgress)) {
-    tx.insert(phonicsSymbolProgress)
-      .values({
-        userId: userId,
-        symbolId,
-        mastery: p.mastery,
-        correct: p.correct,
-        incorrect: p.incorrect,
-        lastReviewedAt: p.lastReviewedAt ?? null,
-        updatedAt: now,
+      .onConflictDoUpdate({
+        target: userPhonicsSettings.userId,
+        set: {
+          displayMode: state.displayMode,
+          selectedAccent: state.selectedAccent,
+          playbackRate: state.playbackRate,
+          totalXp: state.totalXp,
+          updatedAt: now,
+        },
       })
-      .onConflictDoNothing()
       .run();
-  }
 
-  tx.delete(phonicsIncorrectAnswers)
-    .where(eq(phonicsIncorrectAnswers.userId, userId))
-    .run();
-  for (const a of state.incorrectAnswers.slice(0, 200)) {
-    tx.insert(phonicsIncorrectAnswers)
-      .values({
-        id: a.id,
-        userId: userId,
-        scope: a.scope,
-        lessonId: a.lessonId,
-        exerciseId: a.exerciseId,
-        prompt: a.prompt,
-        correctAnswer: a.correctAnswer,
-        userAnswer: a.userAnswer,
-        createdAt: a.createdAt,
-        resolved: a.resolved,
-      })
-      .onConflictDoNothing()
+    tx.delete(phonicsLessonProgress)
+      .where(eq(phonicsLessonProgress.userId, userId))
       .run();
-  }
+    for (const [lessonId, p] of Object.entries(state.lessonProgress)) {
+      tx.insert(phonicsLessonProgress)
+        .values({
+          userId: userId,
+          lessonId,
+          status: p.status,
+          bestScore: p.bestScore,
+          lastScore: p.lastScore,
+          accuracy: p.accuracy,
+          attempts: p.attempts,
+          completedAt: p.completedAt ?? null,
+          mastery: p.mastery,
+          incorrectExerciseIds: p.incorrectExerciseIds,
+          updatedAt: now,
+        })
+        .onConflictDoNothing()
+        .run();
+    }
+
+    tx.delete(phonicsSymbolProgress)
+      .where(eq(phonicsSymbolProgress.userId, userId))
+      .run();
+    for (const [symbolId, p] of Object.entries(state.symbolProgress)) {
+      tx.insert(phonicsSymbolProgress)
+        .values({
+          userId: userId,
+          symbolId,
+          mastery: p.mastery,
+          correct: p.correct,
+          incorrect: p.incorrect,
+          lastReviewedAt: p.lastReviewedAt ?? null,
+          updatedAt: now,
+        })
+        .onConflictDoNothing()
+        .run();
+    }
+
+    tx.delete(phonicsIncorrectAnswers)
+      .where(eq(phonicsIncorrectAnswers.userId, userId))
+      .run();
+    for (const a of state.incorrectAnswers.slice(0, 200)) {
+      tx.insert(phonicsIncorrectAnswers)
+        .values({
+          id: a.id,
+          userId: userId,
+          scope: a.scope,
+          lessonId: a.lessonId,
+          exerciseId: a.exerciseId,
+          prompt: a.prompt,
+          correctAnswer: a.correctAnswer,
+          userAnswer: a.userAnswer,
+          createdAt: a.createdAt,
+          resolved: a.resolved,
+        })
+        .onConflictDoNothing()
+        .run();
+    }
   });
 }
 

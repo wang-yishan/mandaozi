@@ -65,3 +65,12 @@ bun run db:reset      # delete local DB, migrate, seed
 ## Legacy
 
 - `madara_records` may exist in older local DBs from the removed `/actions` generic KV route. It is not used by the app runtime. Keep/migrate only if it contains real data you need.
+
+## Roadmap & Silabus (update)
+
+- `roadmaps`
+  - `silabus_json` (text, nullable): JSON `RoadmapSilabusDef` (silabus **per roadmap**).
+  - `world_category_id` (text, nullable): kaitan opsional ke World category.
+- `user_profiles`
+  - `selected_path_roadmap_id` (text, nullable): satu roadmap aktif yang dijalani user (Path Selected).
+- `user_roadmap_node_progress`: sumber kebenaran progress node per user (`completed` / `in-progress`). Roadmap-level completed di-derive dari node progress, bukan kolom terpisah.

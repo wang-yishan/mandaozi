@@ -13,8 +13,10 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { PageSubnav } from "@/components/layout/page-subnav";
 import { Card } from "@/components/ui/card";
+import type { RoadmapDef } from "@/modules/roadmaps/types/roadmap";
 import type { WorldCategory } from "@/modules/world/constants/world";
 import { useMadaraStore } from "@/store/madara-store";
+import { PathSelectedSidebar } from "./path-selected-sidebar";
 
 function speak(text: string) {
   if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
@@ -123,9 +125,11 @@ export function WorldPage({ categories }: { categories: WorldCategory[] }) {
 export function CategoryPage({
   categoryId,
   categories,
+  roadmaps = [],
 }: {
   categoryId?: string;
   categories: WorldCategory[];
+  roadmaps?: RoadmapDef[];
 }) {
   const storeSelected = useMadaraStore((s) => s.selectedWorldCategoryId);
   const completedLessons = useMadaraStore((s) => s.completedLessons);
@@ -133,8 +137,7 @@ export function CategoryPage({
   const startLessonStore = useMadaraStore((s) => s.startWorldLesson);
   const router = useRouter();
   const selectedId = categoryId ?? storeSelected;
-  const cat =
-    categories.find((c) => c.id === selectedId) ?? categories[0];
+  const cat = categories.find((c) => c.id === selectedId) ?? categories[0];
 
   useEffect(() => {
     if (categoryId && categoryId !== storeSelected) selectCategory(categoryId);
@@ -148,93 +151,105 @@ export function CategoryPage({
   };
 
   return (
-    <section className="max-w-[900px] mx-auto">
-      <button
-        type="button"
-        onClick={() => router.push("/world")}
-        className="flex items-center gap-1 font-bold min-h-[44px]"
-      >
-        <ArrowLeft size={18} /> Back to World
-      </button>
-      <div className="mt-1 mb-3">
-        <PageSubnav />
-      </div>
+    <section className="mx-auto max-w-[1180px]">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
+        <div className="min-w-0">
+          <button
+            type="button"
+            onClick={() => router.push("/world")}
+            className="flex items-center gap-1 font-bold min-h-[44px]"
+          >
+            <ArrowLeft size={18} /> Back to World
+          </button>
+          <div className="mt-1 mb-3">
+            <PageSubnav />
+          </div>
 
-      <div className="flex gap-4 items-start mt-2">
-        <div className="w-[68px] h-[68px] rounded-2xl bg-[var(--primary-soft)] grid place-items-center hanzi text-3xl shrink-0 text-[var(--primary)]">
-          {cat.hanzi}
-        </div>
-        <div>
-          <h1 className="text-[28px] font-black leading-tight">{cat.name}</h1>
-          <p className="text-[var(--muted)]">{cat.desc}</p>
-        </div>
-      </div>
-
-      <div className="grid gap-2 mt-5">
-        {cat.lessons.map((lesson, idx) => {
-          const done = completedLessons.includes(lesson);
-          const current = idx === 2;
-          const locked = idx === 3;
-          return (
-            <div key={lesson} className="card p-4 flex items-center gap-3">
-              <span
-                className="w-10 h-10 rounded-full grid place-items-center shrink-0 font-black"
-                style={{
-                  background: done
-                    ? "var(--primary)"
-                    : current
-                      ? "var(--vermillion)"
-                      : locked
-                        ? "var(--line)"
-                        : "var(--bar)",
-                  color: done || locked ? "white" : "var(--ink)",
-                }}
-              >
-                {done ? (
-                  <Check size={18} />
-                ) : locked ? (
-                  <Lock size={18} />
-                ) : current ? (
-                  <span
-                    className="w-3 h-3 rounded-full bg-white"
-                    style={{ animation: "pulseDot 1.4s infinite" }}
-                  />
-                ) : (
-                  idx + 1
-                )}
-              </span>
-              <div className="flex-1 min-w-0">
-                <b>{lesson}</b>
-                <div className="text-sm text-[var(--muted)]">
-                  {done
-                    ? "Completed"
-                    : current
-                      ? "Current · 8 min"
-                      : locked
-                        ? "Locked — finish Lesson 3 first"
-                        : "8 min"}
-                </div>
-              </div>
-              <span className="text-xs font-black">
-                +{idx === 3 ? 180 : 120} XP
-              </span>
-              {!locked && (
-                <button
-                  type="button"
-                  onClick={startLesson}
-                  className="btn-ghost !min-h-[40px] px-3 text-sm"
-                >
-                  {done ? "Review" : "Start"}
-                </button>
-              )}
+          <div className="flex gap-4 items-start mt-2">
+            <div className="w-[68px] h-[68px] rounded-2xl bg-[var(--primary-soft)] grid place-items-center hanzi text-3xl shrink-0 text-[var(--primary)]">
+              {cat.hanzi}
             </div>
-          );
-        })}
-      </div>
+            <div>
+              <h1 className="text-[28px] font-black leading-tight">
+                {cat.name}
+              </h1>
+              <p className="text-[var(--muted)]">{cat.desc}</p>
+            </div>
+          </div>
 
-      <button type="button" onClick={startLesson} className="btn-primary mt-4">
-        Start Lesson 3: How are you? →
-      </button>
+          <div className="grid gap-2 mt-5">
+            {cat.lessons.map((lesson, idx) => {
+              const done = completedLessons.includes(lesson);
+              const current = idx === 2;
+              const locked = idx === 3;
+              return (
+                <div key={lesson} className="card p-4 flex items-center gap-3">
+                  <span
+                    className="w-10 h-10 rounded-full grid place-items-center shrink-0 font-black"
+                    style={{
+                      background: done
+                        ? "var(--primary)"
+                        : current
+                          ? "var(--vermillion)"
+                          : locked
+                            ? "var(--line)"
+                            : "var(--bar)",
+                      color: done || locked ? "white" : "var(--ink)",
+                    }}
+                  >
+                    {done ? (
+                      <Check size={18} />
+                    ) : locked ? (
+                      <Lock size={18} />
+                    ) : current ? (
+                      <span
+                        className="w-3 h-3 rounded-full bg-white"
+                        style={{ animation: "pulseDot 1.4s infinite" }}
+                      />
+                    ) : (
+                      idx + 1
+                    )}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <b>{lesson}</b>
+                    <div className="text-sm text-[var(--muted)]">
+                      {done
+                        ? "Completed"
+                        : current
+                          ? "Current · 8 min"
+                          : locked
+                            ? "Locked — finish Lesson 3 first"
+                            : "8 min"}
+                    </div>
+                  </div>
+                  <span className="text-xs font-black">
+                    +{idx === 3 ? 180 : 120} XP
+                  </span>
+                  {!locked && (
+                    <button
+                      type="button"
+                      onClick={startLesson}
+                      className="btn-ghost !min-h-[40px] px-3 text-sm"
+                    >
+                      {done ? "Review" : "Start"}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <button
+            type="button"
+            onClick={startLesson}
+            className="btn-primary mt-4"
+          >
+            Start Lesson 3: How are you? →
+          </button>
+        </div>
+
+        <PathSelectedSidebar roadmaps={roadmaps} />
+      </div>
     </section>
   );
 }
@@ -557,14 +572,38 @@ export function LessonPage({
   );
 }
 
-export function CompletePage({ categoryId }: { categoryId?: string }) {
+export function CompletePage({
+  categoryId,
+  roadmaps = [],
+}: {
+  categoryId?: string;
+  roadmaps?: RoadmapDef[];
+}) {
   const router = useRouter();
   const storeSelected = useMadaraStore((s) => s.selectedWorldCategoryId);
   const lessonXp = useMadaraStore((s) => s.lessonXp);
   const lessonCorrect = useMadaraStore((s) => s.lessonCorrect);
   const xp = useMadaraStore((s) => s.xp);
+  const selectedPathRoadmapId = useMadaraStore((s) => s.selectedPathRoadmapId);
+  const completeRoadmapNode = useMadaraStore((s) => s.completeRoadmapNode);
   const earned = lessonXp + 40;
   const catId = categoryId ?? storeSelected;
+
+  useEffect(() => {
+    if (!selectedPathRoadmapId) return;
+    const roadmap = roadmaps.find((r) => r.id === selectedPathRoadmapId);
+    if (!roadmap) return;
+    const match = roadmap.nodes.find((n) => {
+      const href = n.lessonInfo?.href;
+      if (!href) return false;
+      return (
+        href === `/world/${catId}` ||
+        href === `/world/${catId}/lesson` ||
+        href.startsWith(`/world/${catId}/`)
+      );
+    });
+    if (match) completeRoadmapNode(roadmap.id, match.id);
+  }, [catId, completeRoadmapNode, roadmaps, selectedPathRoadmapId]);
 
   return (
     <section className="max-w-[560px] mx-auto text-center pt-4">

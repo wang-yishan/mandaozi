@@ -5,7 +5,7 @@ import {
   sqliteTable,
   text,
 } from "drizzle-orm/sqlite-core";
-import { vocabularyWords, roadmaps, roadmapNodes } from "./content";
+import { roadmapNodes, roadmaps, vocabularyWords } from "./content";
 import { phonicsLessons, phonicsSymbols } from "./phonics";
 
 export const users = sqliteTable("users", {
@@ -102,6 +102,7 @@ export const userProfiles = sqliteTable("user_profiles", {
     .notNull()
     .default(false),
   moreMenuLayout: text("more_menu_layout").notNull().default("grid-2"),
+  selectedPathRoadmapId: text("selected_path_roadmap_id"),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });
 

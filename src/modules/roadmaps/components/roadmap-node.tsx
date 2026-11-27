@@ -10,9 +10,12 @@ import {
   Sparkles,
 } from "lucide-react";
 import type { RoadmapNodeVM } from "../types/roadmap";
+import { RoadmapNodeChoicePicker } from "./roadmap-node-choice-picker";
 
 export type RoadmapNodeData = RoadmapNodeVM & {
   selectedNode: boolean;
+  selectedChoiceId?: string | null;
+  onChoiceChange?: (nodeId: string, choiceId: string | null) => void;
   [key: string]: unknown;
 };
 
@@ -120,6 +123,14 @@ export function RoadmapNode({ data }: NodeProps<RoadmapFlowNode>) {
             : "Start here"}
         </span>
       </div>
+      {data.choices?.length ? (
+        <RoadmapNodeChoicePicker
+          node={data}
+          selectedChoiceId={data.selectedChoiceId ?? null}
+          onChange={(choiceId) => data.onChoiceChange?.(data.id, choiceId)}
+          compact
+        />
+      ) : null}
       <Handle
         type="source"
         position={Position.Bottom}

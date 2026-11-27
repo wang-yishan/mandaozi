@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import type { RoadmapChoiceById } from "@/modules/roadmaps/types/roadmap";
 import type { PracticeTab } from "@/types/madara";
 
 export type SaveStatus = "idle" | "saving" | "saved" | "error";
@@ -68,6 +69,10 @@ export interface MadaraUIState {
   lessonMatched: string[];
   lessonMatchPick: string | null;
   roadmapProgressById: RoadmapProgressById;
+  /** Satu roadmap aktif yang dijalani (Path Selected). */
+  selectedPathRoadmapId: string | null;
+  /** Pilihan Varian Node per roadmap (pengkondisian arah pembelajaran di Dao). */
+  roadmapChoiceById: RoadmapChoiceById;
 }
 
 export interface MadaraState
@@ -111,6 +116,12 @@ export interface MadaraState
   nextWorldLessonStep: () => void;
   setRoadmapInProgress: (roadmapId: string, nodeId: string) => void;
   completeRoadmapNode: (roadmapId: string, nodeId: string) => void;
+  setSelectedPathRoadmapId: (roadmapId: string | null) => void;
+  setRoadmapNodeChoice: (
+    roadmapId: string,
+    nodeId: string,
+    choiceId: string | null,
+  ) => void;
 }
 
 const initialProgress: MadaraProgress = {
@@ -166,6 +177,8 @@ const initialUI: MadaraUIState = {
   lessonMatched: [],
   lessonMatchPick: null,
   roadmapProgressById: {},
+  selectedPathRoadmapId: null,
+  roadmapChoiceById: {},
 };
 
 let toastTimer: ReturnType<typeof setTimeout> | undefined;
@@ -378,6 +391,43 @@ export const useMadaraStore = create<MadaraState>()(
           };
         }),
 
+      setSelectedPathRoadmapId: (roadmapId) =>
+        set({ selectedPathRoadmapId: roadmapId }),
+
+      setRoadmapNodeChoice: (roadmapId, nodeId, choiceId) =>
+        set((st) => {
+          const prevRoadmap = st.roadmapChoiceById[roadmapId] ?? {};
+          const prevChoice = prevRoadmap[nodeId];
+          const normalizedChoice =
+            typeof choiceId === "string" && choiceId.length > 0
+              ? choiceId
+              : null;
+
+          if (normalizedChoice === null) {
+            if (!(nodeId in prevRoadmap)) return {};
+            const nextRoadmap = { ...prevRoadmap };
+            delete nextRoadmap[nodeId];
+            const nextAll = { ...st.roadmapChoiceById };
+            if (Object.keys(nextRoadmap).length === 0) {
+              delete nextAll[roadmapId];
+            } else {
+              nextAll[roadmapId] = nextRoadmap;
+            }
+            return { roadmapChoiceById: nextAll };
+          }
+
+          if (prevChoice === normalizedChoice) return {};
+          return {
+            roadmapChoiceById: {
+              ...st.roadmapChoiceById,
+              [roadmapId]: {
+                ...prevRoadmap,
+                [nodeId]: normalizedChoice,
+              },
+            },
+          };
+        }),
+
       showToast: (msg) => {
         if (toastTimer) clearTimeout(toastTimer);
         set({ toast: msg });
@@ -433,6 +483,8 @@ export const useMadaraStore = create<MadaraState>()(
         sidebarCollapsed: s.sidebarCollapsed,
         moreMenuLayout: s.moreMenuLayout,
         roadmapProgressById: s.roadmapProgressById,
+        selectedPathRoadmapId: s.selectedPathRoadmapId,
+        roadmapChoiceById: s.roadmapChoiceById,
       }),
     },
   ),

@@ -1,3 +1,4 @@
+export { DaoPage } from "./components/dao-page";
 export { WorldCategoriesPage } from "./components/world-categories-page";
 export { WorldExplorerPage } from "./components/world-explorer-page";
 export {

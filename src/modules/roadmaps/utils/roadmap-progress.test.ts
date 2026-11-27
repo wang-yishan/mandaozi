@@ -92,6 +92,7 @@ describe("roadmap-progress", () => {
       completed: 2,
       total: 3,
       percentage: 67,
+      isCompleted: false,
     });
     expect(
       getCurrentLearningStage(roadmap, {

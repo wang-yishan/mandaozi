@@ -27,10 +27,13 @@ export const loginSchema = z.object({
   rememberMe: z.boolean(),
 });
 
-export const signupSchema = z
+export const signupPhoneSchema = z.object({
+  phoneNumber: phoneSchema,
+});
+
+export const signupCompleteSchema = z
   .object({
     name: nameSchema,
-    phoneNumber: phoneSchema,
     password: passwordSchema,
     confirmPassword: passwordSchema,
   })
@@ -48,5 +51,6 @@ export const otpSchema = z.object({
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;
-export type SignupInput = z.infer<typeof signupSchema>;
+export type SignupPhoneInput = z.infer<typeof signupPhoneSchema>;
+export type SignupCompleteInput = z.infer<typeof signupCompleteSchema>;
 export type OtpInput = z.infer<typeof otpSchema>;

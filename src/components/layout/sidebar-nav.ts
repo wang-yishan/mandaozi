@@ -57,6 +57,7 @@ export const SIDEBAR_NAV: SidebarNavItem[] = [
         label: "Lesson Progress",
         href: "/world/progress",
       },
+      { id: "world-dao", label: "Dao", href: "/world/dao" },
     ],
   },
   {

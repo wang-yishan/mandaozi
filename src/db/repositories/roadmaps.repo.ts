@@ -1,5 +1,9 @@
 import { asc, eq } from "drizzle-orm";
-import type { RoadmapDef, RoadmapEdgeDef, RoadmapNodeDef } from "@/modules/roadmaps/types/roadmap";
+import type {
+  RoadmapDef,
+  RoadmapEdgeDef,
+  RoadmapNodeDef,
+} from "@/modules/roadmaps/types/roadmap";
 import { db } from "../index";
 import {
   roadmapEdges,
@@ -54,8 +58,19 @@ function assembleRoadmap(roadmapRow: typeof roadmaps.$inferSelect): RoadmapDef {
     id: e.id,
     source: e.sourceNodeId,
     target: e.targetNodeId,
-    ...((e.kind as "main" | "branch") !== "main" ? { kind: e.kind as "main" | "branch" } : {}),
+    ...((e.kind as "main" | "branch") !== "main"
+      ? { kind: e.kind as "main" | "branch" }
+      : {}),
   }));
+
+  let silabus: RoadmapDef["silabus"];
+  if (roadmapRow.silabusJson) {
+    try {
+      silabus = JSON.parse(roadmapRow.silabusJson) as RoadmapDef["silabus"];
+    } catch {
+      silabus = undefined;
+    }
+  }
 
   return {
     id: roadmapRow.id,
@@ -63,11 +78,19 @@ function assembleRoadmap(roadmapRow: typeof roadmaps.$inferSelect): RoadmapDef {
     description: roadmapRow.description,
     nodes,
     edges,
+    ...(silabus ? { silabus } : {}),
+    ...(roadmapRow.worldCategoryId
+      ? { worldCategoryId: roadmapRow.worldCategoryId }
+      : {}),
   };
 }
 
 export function listRoadmaps(): RoadmapDef[] {
-  const rows = db.select().from(roadmaps).orderBy(asc(roadmaps.sortOrder)).all();
+  const rows = db
+    .select()
+    .from(roadmaps)
+    .orderBy(asc(roadmaps.sortOrder))
+    .all();
   return rows.map(assembleRoadmap);
 }
 

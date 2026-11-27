@@ -1,22 +1,70 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Eye, EyeOff, Loader2, MessageCircle } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { useForm, type Resolver } from "react-hook-form";
-import { Eye, EyeOff, Loader2, MessageCircle } from "lucide-react";
+import { type Resolver, useForm } from "react-hook-form";
+import { type LoginInput, loginSchema } from "@/features/auth/schemas";
 import { authClient } from "@/lib/auth-client";
-import { loginSchema, type LoginInput } from "@/features/auth/schemas";
 
 function normalizePhone(value: string) {
   return value.replace(/[\s()-]/g, "");
+}
+
+function getLoginErrorMessage(error: {
+  message?: string | null;
+  status?: number;
+  code?: string | null;
+}) {
+  const code = (error.code ?? "").toUpperCase();
+  const message = (error.message ?? "").toUpperCase();
+
+  if (
+    code.includes("PHONE_NUMBER_NOT_VERIFIED") ||
+    message.includes("PHONE_NUMBER_NOT_VERIFIED")
+  ) {
+    return {
+      message:
+        "Nomor HP belum terverifikasi. Selesaikan pendaftaran untuk mengaktifkan akun.",
+      showSignupLink: true,
+    };
+  }
+
+  if (
+    code.includes("UNEXPECTED_ERROR") ||
+    message.includes("UNEXPECTED_ERROR")
+  ) {
+    return {
+      message:
+        "Akun belum selesai didaftarkan atau terjadi masalah akun. Selesaikan pendaftaran atau coba lagi.",
+      showSignupLink: true,
+    };
+  }
+
+  if (
+    code.includes("INVALID_PHONE_NUMBER_OR_PASSWORD") ||
+    message.includes("INVALID_PHONE_NUMBER_OR_PASSWORD") ||
+    error.status === 401
+  ) {
+    return {
+      message: "Nomor HP atau password salah.",
+      showSignupLink: false,
+    };
+  }
+
+  return {
+    message: error.message || "Gagal masuk. Coba lagi.",
+    showSignupLink: false,
+  };
 }
 
 export function LoginForm({ nextPath }: { nextPath?: string }) {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+  const [showSignupLink, setShowSignupLink] = useState(false);
 
   const form = useForm<LoginInput>({
     resolver: zodResolver(loginSchema) as Resolver<LoginInput>,
@@ -31,6 +79,7 @@ export function LoginForm({ nextPath }: { nextPath?: string }) {
 
   async function onSubmit(values: LoginInput) {
     setServerError(null);
+    setShowSignupLink(false);
     const phoneNumber = normalizePhone(values.phoneNumber);
 
     const { error } = await authClient.signIn.phoneNumber({
@@ -40,17 +89,14 @@ export function LoginForm({ nextPath }: { nextPath?: string }) {
     });
 
     if (error) {
-      const message =
-        error.message ||
-        (error.status === 401
-          ? "Nomor HP atau password salah, atau nomor belum terverifikasi."
-          : "Gagal masuk. Coba lagi.");
-      setServerError(message);
+      const mapped = getLoginErrorMessage(error);
+      setServerError(mapped.message);
+      setShowSignupLink(mapped.showSignupLink);
       return;
     }
 
     const target =
-      nextPath && nextPath.startsWith("/") && !nextPath.startsWith("//")
+      nextPath?.startsWith("/") && !nextPath.startsWith("//")
         ? nextPath
         : "/home";
     router.push(target);
@@ -101,7 +147,9 @@ export function LoginForm({ nextPath }: { nextPath?: string }) {
               type="button"
               onClick={() => setShowPassword((v) => !v)}
               className="absolute right-2 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-lg text-[var(--muted)] hover:bg-[var(--bg)]"
-              aria-label={showPassword ? "Sembunyikan password" : "Tampilkan password"}
+              aria-label={
+                showPassword ? "Sembunyikan password" : "Tampilkan password"
+              }
             >
               {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
@@ -125,6 +173,21 @@ export function LoginForm({ nextPath }: { nextPath?: string }) {
         {serverError && (
           <div className="rounded-xl border border-[var(--danger)]/20 bg-[var(--danger-bg)] px-4 py-3 text-sm text-[var(--danger)]">
             {serverError}
+            {showSignupLink ? (
+              <>
+                {" "}
+                <Link
+                  href={
+                    nextPath
+                      ? `/signup?next=${encodeURIComponent(nextPath)}`
+                      : "/signup"
+                  }
+                  className="font-bold underline"
+                >
+                  Selesaikan pendaftaran
+                </Link>
+              </>
+            ) : null}
           </div>
         )}
 
@@ -141,7 +204,11 @@ export function LoginForm({ nextPath }: { nextPath?: string }) {
       <p className="mt-6 text-center text-sm text-[var(--muted)]">
         Belum punya akun?{" "}
         <Link
-          href={nextPath ? `/signup?next=${encodeURIComponent(nextPath)}` : "/signup"}
+          href={
+            nextPath
+              ? `/signup?next=${encodeURIComponent(nextPath)}`
+              : "/signup"
+          }
           className="font-bold text-[var(--primary)] hover:underline"
         >
           Daftar dengan nomor HP

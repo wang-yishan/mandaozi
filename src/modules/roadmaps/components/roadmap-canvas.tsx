@@ -23,6 +23,8 @@ interface Props {
   }>;
   selectedNodeId: string | null;
   onSelectNode: (nodeId: string | null) => void;
+  choiceSelection?: Record<string, string>;
+  onChoiceChange?: (nodeId: string, choiceId: string | null) => void;
 }
 
 const nodeTypes = { roadmap: RoadmapNode };
@@ -99,6 +101,8 @@ function RoadmapCanvasInner({
   edges,
   selectedNodeId,
   onSelectNode,
+  choiceSelection,
+  onChoiceChange,
 }: Props) {
   const { fitView } = useReactFlow();
 
@@ -108,11 +112,16 @@ function RoadmapCanvasInner({
         id: node.id,
         type: "roadmap",
         position: node.position,
-        data: { ...node, selectedNode: node.id === selectedNodeId },
+        data: {
+          ...node,
+          selectedNode: node.id === selectedNodeId,
+          selectedChoiceId: choiceSelection?.[node.id] ?? null,
+          onChoiceChange,
+        },
         draggable: false,
         selectable: true,
       })),
-    [nodes, selectedNodeId],
+    [nodes, selectedNodeId, choiceSelection, onChoiceChange],
   );
 
   const rfEdges: Edge[] = useMemo(

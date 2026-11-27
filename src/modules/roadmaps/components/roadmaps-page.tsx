@@ -6,12 +6,16 @@ import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { PageSubnav } from "@/components/layout/page-subnav";
 import { Card } from "@/components/ui/card";
+import { useMadaraStore } from "@/store/madara-store";
 import { useRoadmapProgress } from "../hooks/use-roadmap-progress";
 import type { RoadmapDef, RoadmapNodeVM } from "../types/roadmap";
+import { getRoadmapCompletion } from "../utils/roadmap-progress";
 import { RoadmapDetailPanel } from "./roadmap-detail-panel";
 import { RoadmapLegend } from "./roadmap-legend";
+import { RoadmapPathSelectButton } from "./roadmap-path-select-button";
 import { RoadmapProgressOverview } from "./roadmap-progress-overview";
 import { RoadmapRecommendedNext } from "./roadmap-recommended-next";
+import { RoadmapSilabus } from "./roadmap-silabus";
 
 const RoadmapCanvas = dynamic(
   () => import("./roadmap-canvas").then((m) => m.RoadmapCanvas),
@@ -45,6 +49,23 @@ export function RoadmapsPage({
   const selectedNode = useMemo(
     () => nodes.find((node) => node.id === selectedNodeId) ?? null,
     [nodes, selectedNodeId],
+  );
+
+  const roadmapProgressById = useMadaraStore((s) => s.roadmapProgressById);
+  const selectedPathRoadmapId = useMadaraStore((s) => s.selectedPathRoadmapId);
+  const roadmapChoiceById = useMadaraStore((s) => s.roadmapChoiceById);
+  const setRoadmapNodeChoice = useMadaraStore((s) => s.setRoadmapNodeChoice);
+
+  const choiceSelection = useMemo(
+    () => roadmapChoiceById[roadmap.id] ?? {},
+    [roadmap.id, roadmapChoiceById],
+  );
+
+  const handleChoiceChange = useCallback(
+    (nodeId: string, choiceId: string | null) => {
+      setRoadmapNodeChoice(roadmap.id, nodeId, choiceId);
+    },
+    [roadmap.id, setRoadmapNodeChoice],
   );
 
   const handleOpenNode = useCallback(
@@ -85,36 +106,69 @@ export function RoadmapsPage({
       </div>
 
       <Card className="p-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="text-xs font-black uppercase tracking-[0.12em] text-[var(--muted)]">
-              Roadmap selector
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="text-xs font-black uppercase tracking-[0.12em] text-[var(--muted)]">
+                Roadmap selector
+              </div>
+              {completion.isCompleted && (
+                <span className="rounded-full bg-[var(--primary-soft)] px-2 py-0.5 text-[11px] font-black text-[var(--primary)]">
+                  Completed
+                </span>
+              )}
+              {selectedPathRoadmapId === roadmap.id && (
+                <span className="rounded-full border border-[var(--primary)] px-2 py-0.5 text-[11px] font-black text-[var(--primary)]">
+                  Path aktif
+                </span>
+              )}
             </div>
             <div className="mt-1 text-sm font-bold text-[var(--ink)]">
               {roadmap.title}
             </div>
           </div>
-          <label className="block">
-            <span className="sr-only">Select roadmap</span>
-            <select
-              value={selectedRoadmapId}
-              onChange={(e) => {
-                setSelectedRoadmapId(e.target.value);
-                setSelectedNodeId(null);
-              }}
-              className="min-h-[44px] w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 text-sm font-bold text-[var(--ink)] sm:w-[320px]"
-            >
-              {roadmaps.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.title}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+            <label className="block w-full sm:w-[320px]">
+              <span className="sr-only">Select roadmap</span>
+              <select
+                value={selectedRoadmapId}
+                onChange={(e) => {
+                  setSelectedRoadmapId(e.target.value);
+                  setSelectedNodeId(null);
+                }}
+                className="min-h-[44px] w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 text-sm font-bold text-[var(--ink)]"
+              >
+                {roadmaps.map((item) => {
+                  const itemCompletion = getRoadmapCompletion(
+                    item,
+                    roadmapProgressById[item.id],
+                  );
+                  const isPath = selectedPathRoadmapId === item.id;
+                  const suffix = [
+                    itemCompletion.isCompleted ? "selesai" : null,
+                    isPath ? "path aktif" : null,
+                  ]
+                    .filter(Boolean)
+                    .join(", ");
+                  return (
+                    <option key={item.id} value={item.id}>
+                      {suffix ? `${item.title} (${suffix})` : item.title}
+                    </option>
+                  );
+                })}
+              </select>
+            </label>
+            <RoadmapPathSelectButton roadmap={roadmap} className="sm:w-auto" />
+          </div>
         </div>
         <p className="mt-3 text-sm text-[var(--muted)]">
           {roadmap.description}
         </p>
+        {completion.isCompleted && (
+          <p className="mt-2 text-sm font-bold text-[var(--primary)]">
+            Perjalanan dao selesai — roadmap ini telah dikuasai.
+          </p>
+        )}
       </Card>
 
       <RoadmapProgressOverview
@@ -139,6 +193,8 @@ export function RoadmapsPage({
           edges={roadmap.edges}
           selectedNodeId={selectedNodeId}
           onSelectNode={handleSelectNode}
+          choiceSelection={choiceSelection}
+          onChoiceChange={handleChoiceChange}
         />
 
         <RoadmapRecommendedNext
@@ -149,10 +205,16 @@ export function RoadmapsPage({
 
         <RoadmapDetailPanel
           node={selectedNode}
+          selectedChoiceId={
+            selectedNode ? (choiceSelection[selectedNode.id] ?? null) : null
+          }
+          onChoiceChange={handleChoiceChange}
           onClose={() => setSelectedNodeId(null)}
           onOpen={handleOpenNode}
         />
       </div>
+
+      <RoadmapSilabus roadmap={roadmap} />
     </section>
   );
 }

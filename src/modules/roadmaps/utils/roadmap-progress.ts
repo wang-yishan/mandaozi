@@ -114,7 +114,8 @@ export function getRoadmapCompletion(
     isNodeCompleted(normalized, node.id),
   ).length;
   const percentage = total === 0 ? 0 : Math.round((completed / total) * 100);
-  return { completed, total, percentage };
+  const isCompleted = total > 0 && completed === total;
+  return { completed, total, percentage, isCompleted };
 }
 
 export function getCurrentLearningStage(
