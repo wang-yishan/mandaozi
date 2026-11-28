@@ -32,8 +32,10 @@ function toDomain(
   };
 }
 
-export function getAssessmentAttemptById(id: string): AssessmentAttempt | null {
-  const row = db
+export async function getAssessmentAttemptById(
+  id: string,
+): Promise<AssessmentAttempt | null> {
+  const row = await db
     .select()
     .from(userAssessmentAttempts)
     .where(eq(userAssessmentAttempts.id, id))
@@ -41,12 +43,12 @@ export function getAssessmentAttemptById(id: string): AssessmentAttempt | null {
   return row ? toDomain(row) : null;
 }
 
-export function getAssessmentAttemptByIdempotency(args: {
+export async function getAssessmentAttemptByIdempotency(args: {
   userId: string;
   assessmentId: string;
   idempotencyKey: string;
-}): AssessmentAttempt | null {
-  const row = db
+}): Promise<AssessmentAttempt | null> {
+  const row = await db
     .select()
     .from(userAssessmentAttempts)
     .where(
@@ -60,26 +62,25 @@ export function getAssessmentAttemptByIdempotency(args: {
   return row ? toDomain(row) : null;
 }
 
-export function listUserAssessmentAttempts(args: {
+export async function listUserAssessmentAttempts(args: {
   userId: string;
   roadmapId?: string;
   nodeId?: string;
   limit?: number;
-}): AssessmentAttempt[] {
+}): Promise<AssessmentAttempt[]> {
   const conditions = [eq(userAssessmentAttempts.userId, args.userId)];
   if (args.roadmapId)
     conditions.push(eq(userAssessmentAttempts.roadmapId, args.roadmapId));
   if (args.nodeId) conditions.push(eq(userAssessmentAttempts.nodeId, args.nodeId));
-  return db
+  const rows = await db
     .select()
     .from(userAssessmentAttempts)
     .where(and(...conditions))
-    .all()
-    .map(toDomain)
-    .slice(0, args.limit ?? 50);
+    .all();
+  return rows.map(toDomain).slice(0, args.limit ?? 50);
 }
 
-export function submitAndPersistAssessmentAttempt(args: {
+export async function submitAndPersistAssessmentAttempt(args: {
   attemptId: string;
   userId: string;
   assessment: AssessmentDef;
@@ -91,11 +92,11 @@ export function submitAndPersistAssessmentAttempt(args: {
   evaluationJson?: unknown;
   idempotencyKey?: string | null;
   submittedAt?: Date;
-}): SubmitAssessmentResult & { idempotentReplay: boolean } {
+}): Promise<SubmitAssessmentResult & { idempotentReplay: boolean }> {
   const submittedAt = args.submittedAt ?? new Date();
 
   if (args.idempotencyKey) {
-    const existing = getAssessmentAttemptByIdempotency({
+    const existing = await getAssessmentAttemptByIdempotency({
       userId: args.userId,
       assessmentId: args.assessment.id,
       idempotencyKey: args.idempotencyKey,
@@ -123,8 +124,9 @@ export function submitAndPersistAssessmentAttempt(args: {
     submittedAt,
   });
 
-  db.transaction((tx) => {
-    tx.insert(userAssessmentAttempts)
+  await db.transaction(async (tx: any) => {
+    await tx
+      .insert(userAssessmentAttempts)
       .values({
         id: result.attempt.id,
         userId: result.attempt.userId,
@@ -147,7 +149,7 @@ export function submitAndPersistAssessmentAttempt(args: {
   });
 
   // Persist emitted competency evidence (lesson completion != mastery; assessment evidence does).
-  applyAndPersistCompetencyEvidenceBatch(result.evidence);
+  await applyAndPersistCompetencyEvidenceBatch(result.evidence);
 
   return { ...result, idempotentReplay: false };
 }

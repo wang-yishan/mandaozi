@@ -37,6 +37,7 @@ export function useRoadmapProgress(roadmap: RoadmapDef) {
           assessmentScores: ctx.assessmentScores,
           masteredNodeIds: ctx.masteredNodeIds,
           reviewRequiredNodeIds: ctx.reviewRequiredNodeIds,
+          primaryLearningItemByNodeId: ctx.primaryLearningItemByNodeId,
           nodeCompetenciesByNodeId: ctx.nodeCompetenciesByNodeId,
           nodeResourcesByNodeId: ctx.nodeResourcesByNodeId,
           nodeAssessmentsByNodeId: ctx.nodeAssessmentsByNodeId,

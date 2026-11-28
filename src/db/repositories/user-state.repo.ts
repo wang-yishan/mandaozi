@@ -166,10 +166,10 @@ export function getMadaraPersistedState(
     lessonsCompleted: progress?.lessonsCompleted ?? 0,
     streakDays: progress?.streakDays ?? 0,
     accuracy: progress?.accuracy ?? 0,
-    favorites: favRows.map((r) => r.hanzi),
-    tasksDone: taskRows.map((r) => r.taskId),
+    favorites: favRows.map((r: any) => r.hanzi),
+    tasksDone: taskRows.map((r: any) => r.taskId),
     claimedDailyReward: progress?.claimedDailyReward ?? false,
-    completedLessons: lessonRows.map((r) => r.lessonKey),
+    completedLessons: lessonRows.map((r: any) => r.lessonKey),
     themeMode:
       (profile?.themeMode as MadaraPersistedState["themeMode"]) ?? "light",
     goal: (profile?.goal as MadaraPersistedState["goal"]) ?? "Conversation",
@@ -200,7 +200,7 @@ export function saveMadaraPersistedState(
 ) {
   const now = new Date();
 
-  db.transaction((tx) => {
+  db.transaction((tx: any) => {
     tx.insert(userProfiles)
       .values({
         userId: userId,
@@ -336,11 +336,37 @@ export function saveMadaraPersistedState(
         .run();
     }
 
+    // Merge roadmap progress: never downgrade server-completed nodes.
+    const existingRoadmapRows = tx
+      .select()
+      .from(userRoadmapNodeProgress)
+      .where(eq(userRoadmapNodeProgress.userId, userId))
+      .all();
+    const existingCompletedByRoadmap = new Map<string, Set<string>>();
+    for (const r of existingRoadmapRows) {
+      if (r.status !== "completed") continue;
+      const set = existingCompletedByRoadmap.get(r.roadmapId) ?? new Set<string>();
+      set.add(r.nodeId);
+      existingCompletedByRoadmap.set(r.roadmapId, set);
+    }
+
     tx.delete(userRoadmapNodeProgress)
       .where(eq(userRoadmapNodeProgress.userId, userId))
       .run();
-    for (const [roadmapId, rp] of Object.entries(state.roadmapProgressById)) {
-      for (const nodeId of rp.completedNodeIds) {
+    const mergedRoadmapIds = new Set<string>([
+      ...Object.keys(state.roadmapProgressById),
+      ...existingCompletedByRoadmap.keys(),
+    ]);
+    for (const roadmapId of mergedRoadmapIds) {
+      const rp = state.roadmapProgressById[roadmapId] ?? {
+        completedNodeIds: [],
+        inProgressNodeId: null,
+      };
+      const completed = new Set<string>([
+        ...(rp.completedNodeIds ?? []),
+        ...(existingCompletedByRoadmap.get(roadmapId) ?? []),
+      ]);
+      for (const nodeId of completed) {
         tx.insert(userRoadmapNodeProgress)
           .values({
             userId: userId,
@@ -352,7 +378,7 @@ export function saveMadaraPersistedState(
           .onConflictDoNothing()
           .run();
       }
-      if (rp.inProgressNodeId) {
+      if (rp.inProgressNodeId && !completed.has(rp.inProgressNodeId)) {
         tx.insert(userRoadmapNodeProgress)
           .values({
             userId: userId,
@@ -460,7 +486,7 @@ export function getPhonicsPersistedState(
       (settings?.playbackRate as PhonicsPersistedState["playbackRate"]) ?? 1,
     lessonProgress,
     symbolProgress,
-    incorrectAnswers: incorrectRows.map((r) => ({
+    incorrectAnswers: incorrectRows.map((r: any) => ({
       id: r.id,
       scope: r.scope as "pinyin" | "zhuyin",
       lessonId: r.lessonId,
@@ -481,7 +507,7 @@ export function savePhonicsPersistedState(
 ) {
   const now = new Date();
 
-  db.transaction((tx) => {
+  db.transaction((tx: any) => {
     tx.insert(userPhonicsSettings)
       .values({
         userId: userId,

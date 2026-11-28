@@ -130,7 +130,7 @@ export function getPhonicsSymbolsByIds(ids: string[]): PhonicsSymbol[] {
     .from(phonicsSymbols)
     .where(inArray(phonicsSymbols.id, ids))
     .all();
-  const byId = new Map(rows.map((r) => [r.id, mapSymbol(r)]));
+  const byId = new Map(rows.map((r: any) => [r.id, mapSymbol(r)]));
   return ids.map((id) => byId.get(id)).filter(Boolean) as PhonicsSymbol[];
 }
 
@@ -141,7 +141,7 @@ export function getPhonicsRulesByIds(ids: string[]): PhonicsRule[] {
     .from(phonicsRules)
     .where(inArray(phonicsRules.id, ids))
     .all();
-  const byId = new Map(rows.map((r) => [r.id, mapRule(r)]));
+  const byId = new Map(rows.map((r: any) => [r.id, mapRule(r)]));
   return ids.map((id) => byId.get(id)).filter(Boolean) as PhonicsRule[];
 }
 
@@ -152,7 +152,7 @@ export function getPhonicsExercisesByIds(ids: string[]): Exercise[] {
     .from(phonicsExercises)
     .where(inArray(phonicsExercises.id, ids))
     .all();
-  const byId = new Map(rows.map((r) => [r.id, mapExercise(r)]));
+  const byId = new Map(rows.map((r: any) => [r.id, mapExercise(r)]));
   return ids.map((id) => byId.get(id)).filter(Boolean) as Exercise[];
 }
 

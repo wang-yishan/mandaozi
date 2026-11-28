@@ -16,6 +16,16 @@ import {
 } from "../schema";
 
 export interface RoadmapProgressionContext extends RoadmapProgressionInput {
+  primaryLearningItemByNodeId: Record<
+    string,
+    {
+      learningItemId: string;
+      title: string;
+      kind: string;
+      sourceType: string;
+      sourceRef: string;
+    }
+  >;
   nodeCompetenciesByNodeId: Record<
     string,
     Array<{ id: string; title: string }>
@@ -52,6 +62,7 @@ export function loadRoadmapProgressionContext(args: {
   if (nodeIds.length === 0) {
     return {
       branchChoices: {},
+      primaryLearningItemByNodeId: {},
       nodeCompetenciesByNodeId: {},
       nodeResourcesByNodeId: {},
       nodeAssessmentsByNodeId: {},
@@ -97,8 +108,8 @@ export function loadRoadmapProgressionContext(args: {
     .where(eq(userCompetencyMastery.userId, userId))
     .all();
   const competencyMasteredIds = masteryRows
-    .filter((m) => m.state === "mastered")
-    .map((m) => m.competencyId);
+    .filter((m: any) => m.state === "mastered")
+    .map((m: any) => m.competencyId);
   const competencyScores: Record<string, number> = {};
   for (const m of masteryRows) competencyScores[m.competencyId] = m.score;
 
@@ -109,9 +120,9 @@ export function loadRoadmapProgressionContext(args: {
     .all();
   const passedAssessmentIds = Array.from(
     new Set(
-      attemptRows.filter((a) => a.passed === true).map((a) => a.assessmentId),
+      attemptRows.filter((a: any) => a.passed === true).map((a: any) => a.assessmentId),
     ),
-  );
+  ) as string[];
   const assessmentScores: Record<string, number> = {};
   for (const a of attemptRows) {
     if (typeof a.score === "number") {
@@ -125,9 +136,12 @@ export function loadRoadmapProgressionContext(args: {
     .select({
       nodeId: roadmapNodeResources.nodeId,
       role: roadmapNodeResources.role,
+      sortOrder: roadmapNodeResources.sortOrder,
+      isPrimary: roadmapNodeResources.isPrimary,
       itemId: learningItems.id,
       title: learningItems.title,
       kind: learningItems.kind,
+      sourceType: learningItems.sourceType,
       sourceRef: learningItems.sourceRef,
     })
     .from(roadmapNodeResources)
@@ -139,6 +153,8 @@ export function loadRoadmapProgressionContext(args: {
     .all();
   const nodeResourcesByNodeId: RoadmapProgressionContext["nodeResourcesByNodeId"] =
     {};
+  const primaryLearningItemByNodeId: RoadmapProgressionContext["primaryLearningItemByNodeId"] =
+    {};
   for (const r of nodeResources) {
     const list = nodeResourcesByNodeId[r.nodeId] ?? [];
     list.push({
@@ -149,6 +165,40 @@ export function loadRoadmapProgressionContext(args: {
       role: r.role as "learn" | "practice" | "review" | "assessment",
     });
     nodeResourcesByNodeId[r.nodeId] = list;
+
+    if (r.isPrimary) {
+      primaryLearningItemByNodeId[r.nodeId] = {
+        learningItemId: r.itemId,
+        title: r.title,
+        kind: r.kind,
+        sourceType: r.sourceType,
+        sourceRef: r.sourceRef,
+      };
+    }
+  }
+  // Fallback: if no isPrimary flag (pre-backfill/migration edge), pick best resource.
+  for (const nodeId of nodeIds) {
+    if (primaryLearningItemByNodeId[nodeId]) continue;
+    const candidates = nodeResources
+      .filter((r: any) => r.nodeId === nodeId)
+      .slice()
+      .sort((a: any, b: any) => {
+        const aLearn = a.role === "learn" ? 0 : 1;
+        const bLearn = b.role === "learn" ? 0 : 1;
+        if (aLearn !== bLearn) return aLearn - bLearn;
+        if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+        return a.itemId.localeCompare(b.itemId);
+      });
+    const c = candidates[0];
+    if (c) {
+      primaryLearningItemByNodeId[nodeId] = {
+        learningItemId: c.itemId,
+        title: c.title,
+        kind: c.kind,
+        sourceType: c.sourceType,
+        sourceRef: c.sourceRef,
+      };
+    }
   }
 
   const nodeAssessments = db
@@ -171,8 +221,8 @@ export function loadRoadmapProgressionContext(args: {
   for (const a of nodeAssessments) {
     const list = nodeAssessmentsByNodeId[a.nodeId] ?? [];
     const best = attemptRows
-      .filter((att) => att.assessmentId === a.assessmentId)
-      .sort((x, y) => (y.score ?? -1) - (x.score ?? -1))[0];
+      .filter((att: any) => att.assessmentId === a.assessmentId)
+      .sort((x: any, y: any) => (y.score ?? -1) - (x.score ?? -1))[0];
     list.push({
       id: a.assessmentId,
       title: a.assessmentTitle,
@@ -205,8 +255,8 @@ export function loadRoadmapProgressionContext(args: {
     nodeCompetenciesByNodeId[c.nodeId] = list;
   }
 
-  const masteryByCompetencyId = new Map(
-    masteryRows.map((m) => [m.competencyId, m]),
+  const masteryByCompetencyId = new Map<string, any>(
+    masteryRows.map((m: any) => [m.competencyId, m]),
   );
   const competencyStates: Record<
     string,
@@ -239,8 +289,9 @@ export function loadRoadmapProgressionContext(args: {
     competencyStates,
     passedAssessmentIds,
     assessmentScores,
-    masteredNodeIds,
-    reviewRequiredNodeIds,
+    masteredNodeIds: masteredNodeIds as string[],
+    reviewRequiredNodeIds: reviewRequiredNodeIds as string[],
+    primaryLearningItemByNodeId,
     nodeCompetenciesByNodeId,
     nodeResourcesByNodeId,
     nodeAssessmentsByNodeId,

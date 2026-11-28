@@ -72,64 +72,141 @@ export function backfillLegacyLearningResources(database: Db) {
   const nodes = database.select().from(roadmapNodes).all();
   let itemsUpserted = 0;
   let linksCreated = 0;
+  let primariesSet = 0;
 
   for (const node of nodes) {
-    if (!node.lessonLabel) continue;
-    const itemId = `li:node:${node.id}`;
+    const fallbackItemId = `li:node:${node.id}`;
     const kind = node.lessonKind ?? "lesson";
-    const sourceRef = node.lessonHref ?? `node:${node.id}`;
+    const fallbackSourceRef = node.lessonHref ?? `node:${node.id}`;
+    const fallbackTitle = node.lessonLabel?.trim() || node.title;
 
-    database
-      .insert(learningItems)
-      .values({
-        id: itemId,
-        kind,
-        title: node.lessonLabel,
-        sourceType: node.lessonHref ? "internal_route" : "content",
-        sourceRef,
-        estimatedMin: null,
-        metaJson: { legacy: true, nodeId: node.id },
-        active: true,
-        createdAt: ts,
-        updatedAt: ts,
-      })
-      .onConflictDoUpdate({
-        target: learningItems.id,
-        set: {
-          kind,
-          title: node.lessonLabel,
-          sourceType: node.lessonHref ? "internal_route" : "content",
-          sourceRef,
-          metaJson: { legacy: true, nodeId: node.id },
-          active: true,
-          updatedAt: ts,
-        },
-      })
-      .run();
-    itemsUpserted++;
+    const existingResources = database
+      .select()
+      .from(roadmapNodeResources)
+      .where(eq(roadmapNodeResources.nodeId, node.id))
+      .all();
 
-    const role =
-      kind === "assessment"
+    const existingPrimary = existingResources.find((r: any) => r.isPrimary);
+    const preferred =
+      existingPrimary ??
+      existingResources.find(
+        (r: any) => r.learningItemId === fallbackItemId,
+      ) ??
+      existingResources
+        .slice()
+        .sort((a: any, b: any) => {
+          const aLearn = a.role === "learn" ? 0 : 1;
+          const bLearn = b.role === "learn" ? 0 : 1;
+          if (aLearn !== bLearn) return aLearn - bLearn;
+          if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+          return a.learningItemId.localeCompare(b.learningItemId);
+        })[0];
+
+    const primaryItemId = preferred?.learningItemId ?? fallbackItemId;
+    const primaryRole =
+      preferred?.role ??
+      (kind === "assessment"
         ? "assessment"
         : kind === "practice"
           ? "practice"
-          : "learn";
+          : "learn");
 
-    const res = database
-      .insert(roadmapNodeResources)
-      .values({
-        nodeId: node.id,
-        learningItemId: itemId,
-        role,
-        sortOrder: 0,
-        unlockRuleJson: null,
-      })
-      .onConflictDoNothing()
+    const existingItem = database
+      .select()
+      .from(learningItems)
+      .where(eq(learningItems.id, primaryItemId))
+      .get();
+
+    if (!existingItem) {
+      database
+        .insert(learningItems)
+        .values({
+          id: primaryItemId,
+          kind,
+          title: fallbackTitle,
+          sourceType: node.lessonHref ? "internal_route" : "content",
+          sourceRef: fallbackSourceRef,
+          estimatedMin: null,
+          metaJson: { legacy: true, nodeId: node.id },
+          active: true,
+          createdAt: ts,
+          updatedAt: ts,
+        })
+        .onConflictDoNothing()
+        .run();
+      itemsUpserted++;
+    } else {
+      // Conservative repair: fill missing/broken legacy fields, preserve curated values.
+      const shouldRepairTitle =
+        !existingItem.title?.trim() || existingItem.title === existingItem.id;
+      const shouldRepairSource = !existingItem.sourceRef?.trim();
+      if (
+        shouldRepairTitle ||
+        shouldRepairSource ||
+        !existingItem.active
+      ) {
+        database
+          .update(learningItems)
+          .set({
+            ...(shouldRepairTitle ? { title: fallbackTitle } : {}),
+            ...(shouldRepairSource
+              ? {
+                  sourceRef: fallbackSourceRef,
+                  sourceType: node.lessonHref ? "internal_route" : "content",
+                }
+              : {}),
+            ...(!existingItem.active ? { active: true } : {}),
+            updatedAt: ts,
+          })
+          .where(eq(learningItems.id, primaryItemId))
+          .run();
+      }
+    }
+
+    // Ensure the primary mapping exists.
+    const hasPrimaryMapping = existingResources.some(
+      (r: any) => r.learningItemId === primaryItemId && r.role === primaryRole,
+    );
+    if (!hasPrimaryMapping) {
+      const res = database
+        .insert(roadmapNodeResources)
+        .values({
+          nodeId: node.id,
+          learningItemId: primaryItemId,
+          role: primaryRole,
+          sortOrder: preferred?.sortOrder ?? 0,
+          isPrimary: false,
+          unlockRuleJson: preferred?.unlockRuleJson ?? null,
+        })
+        .onConflictDoNothing()
+        .run();
+      if (Number(res.changes) > 0) linksCreated++;
+    }
+
+    // Ensure exactly one primary for this node.
+    database
+      .update(roadmapNodeResources)
+      .set({ isPrimary: false })
+      .where(eq(roadmapNodeResources.nodeId, node.id))
       .run();
-    if (Number(res.changes) > 0) linksCreated++;
+    database
+      .update(roadmapNodeResources)
+      .set({ isPrimary: true })
+      .where(
+        and(
+          eq(roadmapNodeResources.nodeId, node.id),
+          eq(roadmapNodeResources.learningItemId, primaryItemId),
+          eq(roadmapNodeResources.role, primaryRole),
+        ),
+      )
+      .run();
+    primariesSet++;
+
+    // Also backfill a legacy item for nodes with lessonLabel but no primary mapping existed
+    // (handled above) - no-op. Keep additional resources intact.
   }
 
-  return { itemsUpserted, linksCreated };
+  return { itemsUpserted, linksCreated, primariesSet };
 }
 
 export function backfillUserRoadmapRecords(database: Db) {

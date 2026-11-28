@@ -163,4 +163,53 @@ describe("roadmap progression adapter", () => {
     );
     expect(a?.masteryState).toBe("learning");
   });
+
+  it("always emits masteryHref and learningItemId, even without lessonInfo/href", () => {
+    const noLessonRoadmap: RoadmapDef = {
+      id: "rm2",
+      title: "R",
+      description: "d",
+      nodes: [
+        {
+          id: "x1",
+          title: "X1",
+          description: "d",
+          category: "foundation",
+          estimatedDuration: "5m",
+          prerequisiteIds: [],
+          position: { x: 0, y: 0 },
+        },
+      ],
+      edges: [],
+    };
+    const vms = buildRoadmapNodeVMsWithProgression(noLessonRoadmap, null, {});
+    const x1 = vms[0];
+    expect(x1.learningItemId).toBe("li:node:x1");
+    expect(x1.masteryHref).toBe(
+      "/mastery/li%3Anode%3Ax1?roadmapId=rm2&nodeId=x1",
+    );
+    expect(x1.unlocked).toBe(true);
+    expect(x1.canOpen).toBe(true);
+  });
+
+  it("uses primaryLearningItemByNodeId and preserves sourceHref separately", () => {
+    const vms = buildRoadmapNodeVMsWithProgression(roadmap, null, {
+      primaryLearningItemByNodeId: {
+        a: {
+          learningItemId: "li-custom-a",
+          sourceRef: "/practice/source-a",
+          sourceType: "internal_route",
+          kind: "practice",
+          title: "A",
+        },
+      },
+    });
+    const a = vms.find((n) => n.id === "a");
+    expect(a?.learningItemId).toBe("li-custom-a");
+    expect(a?.masteryHref).toContain("/mastery/li-custom-a");
+    expect(a?.masteryHref).toContain("roadmapId=r1");
+    expect(a?.masteryHref).toContain("nodeId=a");
+    expect(a?.sourceHref).toBe("/practice/source-a");
+    expect(a?.lessonInfo?.href).toBeUndefined();
+  });
 });

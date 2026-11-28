@@ -40,7 +40,7 @@ export async function submitAssessmentAttemptAction(
 ) {
   const userId = await requireUserId();
   const parsed = submitAssessmentSchema.parse(input);
-  const result = submitAndPersistAssessmentAttempt({
+  const result = await submitAndPersistAssessmentAttempt({
     attemptId: parsed.attemptId,
     userId,
     assessment: {
@@ -81,7 +81,7 @@ export async function listAssessmentAttemptsAction(
 ) {
   const userId = await requireUserId();
   const parsed = listAttemptsSchema.parse(input);
-  const attempts = listUserAssessmentAttempts({
+  const attempts = await listUserAssessmentAttempts({
     userId,
     roadmapId: parsed.roadmapId,
     nodeId: parsed.nodeId,

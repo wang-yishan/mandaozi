@@ -108,7 +108,9 @@ describe("legacy roadmap backfill", () => {
 
     const first = runLegacyRoadmapBackfill(db);
     expect(first.rules.created).toBeGreaterThan(0);
-    expect(first.resources.itemsUpserted).toBe(1);
+    // Every node gets a learning item, including n2 without lessonLabel.
+    expect(first.resources.itemsUpserted).toBe(2);
+    expect(first.resources.primariesSet).toBe(2);
     expect(first.competencies.competencyCount).toBe(2);
     expect(first.records.selectedUpserted).toBe(1);
     expect(first.records.completedUpserted).toBe(1);
@@ -120,6 +122,17 @@ describe("legacy roadmap backfill", () => {
 
     const items = db.select().from(schema.learningItems).all();
     expect(items.some((i) => i.id === "li:node:n1")).toBe(true);
+    expect(items.some((i) => i.id === "li:node:n2")).toBe(true);
+    const n2Item = items.find((i) => i.id === "li:node:n2");
+    expect(n2Item?.title).toBe("N2");
+    expect(n2Item?.sourceRef).toBe("node:n2");
+
+    const resourceRows = db.select().from(schema.roadmapNodeResources).all();
+    const n1Primary = resourceRows.filter((r) => r.nodeId === "n1" && r.isPrimary);
+    const n2Primary = resourceRows.filter((r) => r.nodeId === "n2" && r.isPrimary);
+    expect(n1Primary).toHaveLength(1);
+    expect(n2Primary).toHaveLength(1);
+    expect(n1Primary[0]?.learningItemId).toBe("li:node:n1");
 
     const comps = db.select().from(schema.competencies).all();
     expect(comps.some((c) => c.id === "cmp:node:n1")).toBe(true);
@@ -134,8 +147,12 @@ describe("legacy roadmap backfill", () => {
     // idempotent
     const second = runLegacyRoadmapBackfill(db);
     expect(second.rules.created).toBe(0);
+    expect(second.resources.itemsUpserted).toBe(0);
+    expect(second.resources.primariesSet).toBe(2);
     const rulesAfter = db.select().from(schema.roadmapNodeRules).all();
     expect(rulesAfter.length).toBe(rules.length);
+    const resourcesAfter = db.select().from(schema.roadmapNodeResources).all();
+    expect(resourcesAfter.length).toBe(resourceRows.length);
 
     t.sqlite.close();
   });

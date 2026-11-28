@@ -9,6 +9,6 @@ export default async function Page({
   params: Promise<{ categoryId: string }>;
 }) {
   const { categoryId } = await params;
-  const toneOptions = listWorldToneOptions();
+  const toneOptions = await listWorldToneOptions();
   return <LessonPage categoryId={categoryId} toneOptions={toneOptions} />;
 }

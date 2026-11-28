@@ -13,6 +13,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { completeMasteryCardAction } from "@/app/actions/mastery";
 import {
   getRoadmapProgressionContextAction,
   listUserRoadmapRecordsAction,
@@ -156,6 +157,7 @@ export function DaoPage({ roadmaps }: Props) {
           assessmentScores: ctx.assessmentScores,
           masteredNodeIds: ctx.masteredNodeIds,
           reviewRequiredNodeIds: ctx.reviewRequiredNodeIds,
+          primaryLearningItemByNodeId: ctx.primaryLearningItemByNodeId,
           nodeCompetenciesByNodeId: ctx.nodeCompetenciesByNodeId,
           nodeResourcesByNodeId: ctx.nodeResourcesByNodeId,
           nodeAssessmentsByNodeId: ctx.nodeAssessmentsByNodeId,
@@ -231,9 +233,8 @@ export function DaoPage({ roadmaps }: Props) {
   const handleOpenNode = useCallback(
     (node: RoadmapNodeVM) => {
       if (!roadmap || node.status === "locked") return;
-      const href = node.lessonInfo?.href;
       setRoadmapInProgress(roadmap.id, node.id);
-      if (href) router.push(href);
+      router.push(node.masteryHref);
     },
     [roadmap, router, setRoadmapInProgress],
   );
@@ -241,7 +242,15 @@ export function DaoPage({ roadmaps }: Props) {
   const handleCompleteNode = useCallback(
     (node: RoadmapNodeVM) => {
       if (!roadmap || node.status === "locked") return;
-      completeRoadmapNode(roadmap.id, node.id);
+      void completeMasteryCardAction({
+        learningItemId: node.learningItemId,
+        roadmapId: roadmap.id,
+        nodeId: node.id,
+      })
+        .then((res) => {
+          if (res.nodeCompleted) completeRoadmapNode(roadmap.id, node.id);
+        })
+        .catch((e) => console.error("complete node failed", e));
     },
     [completeRoadmapNode, roadmap],
   );
@@ -413,7 +422,6 @@ export function DaoPage({ roadmaps }: Props) {
                     node.status === "completed" || node.status === "mastered";
                   const isNext = nextNode?.id === node.id;
                   const canOpen = node.status !== "locked";
-                  const hasHref = Boolean(node.lessonInfo?.href);
                   const originalNode = roadmap.nodes.find(
                     (n) => n.id === node.id,
                   );
@@ -490,11 +498,7 @@ export function DaoPage({ roadmaps }: Props) {
                                 className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 text-xs font-bold text-[var(--ink)] hover:bg-[var(--bg)]"
                               >
                                 <BookOpen size={14} />
-                                {hasHref
-                                  ? done
-                                    ? "Review"
-                                    : "Buka"
-                                  : "Tandai"}
+                                {done ? "Review" : "Buka"}
                               </button>
                               {!done ? (
                                 <button

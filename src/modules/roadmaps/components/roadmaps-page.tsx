@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { completeMasteryCardAction } from "@/app/actions/mastery";
 import { listUserRoadmapRecordsAction } from "@/app/actions/roadmap";
 import { PageSubnav } from "@/components/layout/page-subnav";
 import { Card } from "@/components/ui/card";
@@ -97,14 +98,8 @@ export function RoadmapsPage({
   const handleOpenNode = useCallback(
     (node: RoadmapNodeVM) => {
       if (node.status === "locked") return;
-      const href = node.lessonInfo?.href;
-      if (!href) {
-        setRoadmapInProgress(roadmap.id, node.id);
-        setSelectedNodeId(node.id);
-        return;
-      }
       setRoadmapInProgress(roadmap.id, node.id);
-      router.push(href);
+      router.push(node.masteryHref);
     },
     [roadmap.id, router, setRoadmapInProgress],
   );
@@ -112,7 +107,15 @@ export function RoadmapsPage({
   const handleCompleteNode = useCallback(
     (node: RoadmapNodeVM) => {
       if (node.status === "locked") return;
-      completeRoadmapNode(roadmap.id, node.id);
+      void completeMasteryCardAction({
+        learningItemId: node.learningItemId,
+        roadmapId: roadmap.id,
+        nodeId: node.id,
+      })
+        .then((res) => {
+          if (res.nodeCompleted) completeRoadmapNode(roadmap.id, node.id);
+        })
+        .catch((e) => console.error("complete node failed", e));
     },
     [completeRoadmapNode, roadmap.id],
   );

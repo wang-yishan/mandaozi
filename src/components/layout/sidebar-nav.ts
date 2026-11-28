@@ -3,6 +3,7 @@ import {
   BookOpen,
   Dumbbell,
   Globe,
+  GraduationCap,
   Home,
   Map as MapIcon,
   Settings,
@@ -111,6 +112,13 @@ export const SIDEBAR_NAV: SidebarNavItem[] = [
         href: "/practice/weak-topics",
       },
     ],
+  },
+  {
+    id: "mastery",
+    label: "Mastery",
+    icon: GraduationCap,
+    href: "/mastery",
+    children: [{ id: "mastery-overview", label: "Overview", href: "/mastery" }],
   },
   {
     id: "dictionary",

@@ -2,33 +2,47 @@
 
 ## Implemented (verified)
 - **Migration 0004**: additive schema for competencies, learning items, assessments, mappings, rules, `user_roadmap_records`, branch choices, mastery, attempts. Partial unique index enforces **one selected roadmap per user** (`is_selected=1`); many completed records allowed.
+- **Migration 0005**: additive `roadmap_node_resources.is_primary` + partial unique index `roadmap_node_resources_one_primary_uq` (one primary per node).
 - **Domain engines**: progression rule evaluator (AND/OR/threshold/assessment/mastery/branch choice/legacy prereq adapter), competency mastery engine (lesson != mastery), assessment grading + evidence emission, guided recommendation.
-- **VM adapter**: `buildRoadmapNodeVMsWithProgression` falls back to legacy `prerequisiteIds`; supports rules, branch choices, mastery/assessment context, `competencyStates`, `masteredNodeIds/reviewRequiredNodeIds`, competency/resource/assessment enrichment, review_required mastery derivation.
-- **DB repos/actions**: user roadmap records (single selected, many completed), branch choices, competency mastery persistence, assessment attempt persistence with idempotency, progression context loader (joins competency/assessment titles, attempt pass/score, mastery states), Zod-validated server actions.
-- **UI wiring**: `useRoadmapProgress` + `DaoPage` + `PathSelectedSidebar` use progression adapter; DB progression context loaded in hook/Dao; detail bottom sheet shows competency/mastery/assessment/resource sections + recent attempts; **basic custom drag-to-close** on bottom sheet (no new dependency); `RoadmapRecommendedNext` used in Roadmaps and Dao with real resources; completed-roadmaps history in Dao and Roadmaps; dashboard roadmap preview status UI extended for mastered/review_required/in-progress/recommended.
-- **Legacy backfill**: `bun run db:backfill` backfills unlock rules from prerequisiteIds, learning items/resources from lessonInfo, competencies/assessments/mappings per node, and `user_roadmap_records` (selected + completed). Tests verify backfill + adapter consumption.
+- **VM adapter**: `buildRoadmapNodeVMsWithProgression` always emits `learningItemId`, `masteryHref`, `sourceHref?`, `unlocked/canOpen/canComplete`, unlock rule and failed/satisfied conditions; falls back to legacy `prerequisiteIds`; supports rules, branch choices, mastery/assessment context, `primaryLearningItemByNodeId`, `competencyStates`, `masteredNodeIds/reviewRequiredNodeIds`, competency/resource/assessment enrichment, review_required mastery derivation.
+- **Mastery (individual learning cards)**: `/mastery` lists active learning items; `/mastery/[learningItemId]` renders card, source action, roadmap context/prerequisites, occurrences, and completion button. No new table; reuses `learning_items`.
+- **Navigation**: Roadmaps/Dao/RecommendedNext/DetailPanel open `masteryHref` (not raw `lessonInfo.href`). Original source preserved as `sourceHref`.
+- **Server-authoritative completion**: `completeMasteryCardAction` (Zod+auth) verifies node/resource ownership, checks unlock server-side, upserts `user_learning_item_progress`, completes `user_roadmap_node_progress` only when unlocked and required assessments pass; idempotent by natural DB state. No manual review.
+- **State sync safety**: `saveMadaraPersistedState` merges roadmap progress so server-completed nodes are not downgraded by stale client snapshots.
+- **Backfill**: `bun run db:backfill` now backfills unlock rules, primary learning items/resources for **every** node (including nodes without `lessonLabel/lessonHref`), competencies/assessments/mappings, and `user_roadmap_records`. Idempotent.
+- **No manual review active flow**: legacy `review_required` mapped to learning/retry; completion and unlock are automatic when requirements pass.
 
 ## Key files
-- Schema/migration: `src/db/schema/roadmap-competency.ts`, `src/db/migrations/0004_dry_ghost_rider.sql`
+- Schema/migration: `src/db/schema/roadmap-competency.ts`, `src/db/migrations/0004_dry_ghost_rider.sql`, `src/db/migrations/0005_mastery_primary_learning_item.sql`
 - Backfill: `src/db/backfill/legacy-roadmap-backfill.ts`, `src/db/backfill/run.ts`
 - Engines: `src/modules/progression/*`, `src/modules/competencies/*`, `src/modules/assessments/*`, `src/modules/guided-learning/*`
+- Mastery: `src/modules/mastery/{lib,components,types}/*`, `src/app/(app)/mastery/page.tsx`, `src/app/(app)/mastery/[learningItemId]/page.tsx`, `src/app/actions/mastery.ts`, `src/db/repositories/mastery.repo.ts`
 - Adapter: `src/modules/roadmaps/utils/roadmap-progression-adapter.ts`
-- Repos/actions: `src/db/repositories/{user-roadmap-records,competency-mastery,assessment-attempts,learning-resources,roadmap-progression}.repo.ts`, `src/app/actions/{roadmap,assessments,user-state}.ts`
-- UI: `src/modules/roadmaps/components/{roadmap-detail-panel,roadmap-recommended-next,roadmaps-page}.tsx`, `src/modules/world/components/{dao-page,path-selected-sidebar}.tsx`, `src/modules/home/components/dashboard/roadmap-preview.tsx`
+- Repos/actions: `src/db/repositories/{user-roadmap-records,competency-mastery,assessment-attempts,learning-resources,roadmap-progression,user-state}.repo.ts`, `src/app/actions/{roadmap,assessments,user-state,mastery}.ts`
+- UI: `src/modules/roadmaps/components/{roadmap-detail-panel,roadmap-recommended-next,roadmaps-page}.tsx`, `src/modules/world/components/{dao-page,path-selected-sidebar}.tsx`
 
 ## Verification (latest run in this session)
 ```text
 bunx tsc --noEmit --pretty false  # clean
-bun test src/db/repositories/roadmap-db.integration.test.ts src/modules/roadmaps/utils/roadmap-progression-adapter.test.ts src/db/backfill/legacy-roadmap-backfill.test.ts
-# 10 pass, 0 fail, 32 expect() calls
+
+bun test src/modules/progression/engine.test.ts \
+  src/modules/competencies/engine.test.ts \
+  src/modules/assessments/engine.test.ts \
+  src/modules/assessments/assessment-mastery-flow.test.ts \
+  src/modules/guided-learning/engine.test.ts \
+  src/modules/roadmaps/utils/roadmap-progression-adapter.test.ts \
+  src/db/repositories/roadmap-db.integration.test.ts \
+  src/db/backfill/legacy-roadmap-backfill.test.ts
+# 28 pass, 0 fail, 98 expect() calls
+
+bun run db:backfill
+# resources: { itemsUpserted: 13, linksCreated: 13, primariesSet: 13 } (for 13 nodes)
 ```
-Previously reported passing: 21 domain/adapter tests, 4 DB/backfill tests.
 
 ## Remaining gaps / blockers (requires decision or environment)
-- **Dashboard/profile real-data progression enrichment**: dashboard preview status UI is consistent, but `dashboard-data.ts` is heuristic; wiring to DB progression VM needs data-loading/caching decision.
-- **Full mobile bottom-sheet gestures**: basic drag-to-close done; snap points/velocity/scroll-conflict need UX decision (extend custom or approve dependency).
-- **Mapping quality / branch-choice legacy import**: deterministic baseline backfill exists; richer domain mapping and legacy localStorage branch-choice edge cases need product/content rules. Branch choices sync on save and via `migrateLocalStorageStateAction`.
-- **Production migration/rollback verification**: local migration/backfill/tests verified; needs staging/prod-like DB copy + rollback policy.
 - **AuthZ action integration tests**: actions depend on `auth.api.getSession`; needs approved auth mock/harness.
 - **Cross-device sync/e2e tests**: needs browser/e2e harness and defined cross-device scenario.
-- **Final API contract doc pass**: see `docs/ROADMAP-MIGRATION-AND-API.md`; finalize after blockers resolved.
+- **Production migration/rollback verification**: local migration/backfill/tests verified; needs staging/prod-like DB copy + rollback policy.
+- **Richer domain mapping quality**: deterministic baseline backfill exists; curated competency/assessment/resource authoring needs product/content rules.
+- **Full mobile bottom-sheet gestures**: basic drag-to-close done; snap points/velocity/scroll-conflict need UX decision.
+- **Dashboard/profile real-data progression enrichment**: dashboard still heuristic in some places.

@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: ["**.*"],
   cacheComponents: true,
   partialPrefetching: true,
-  serverExternalPackages: ["better-sqlite3"],
+  serverExternalPackages: ["better-sqlite3", "@libsql/client", "libsql"],
   async headers() {
     return [
       {

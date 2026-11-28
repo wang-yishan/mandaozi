@@ -54,7 +54,7 @@ export function applyAndPersistCompetencyEvidence(
   evidence: CompetencyEvidence,
 ): CompetencyMastery {
   const now = evidence.occurredAt;
-  return db.transaction((tx) => {
+  return db.transaction((tx: any) => {
     const currentRow = tx
       .select()
       .from(userCompetencyMastery)

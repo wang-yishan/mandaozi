@@ -1,0 +1,2 @@
+ALTER TABLE `roadmap_node_resources` ADD `is_primary` integer DEFAULT false NOT NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX `roadmap_node_resources_one_primary_uq` ON `roadmap_node_resources` (`node_id`) WHERE "roadmap_node_resources"."is_primary" = 1;

@@ -4,6 +4,6 @@ import { listWorldCategories } from "@/db/repositories/world.repo";
 import { WorldExplorerPage } from "@/modules/world";
 
 export default async function Page() {
-  const categories = listWorldCategories();
+  const categories = await listWorldCategories();
   return <WorldExplorerPage categories={categories} />;
 }

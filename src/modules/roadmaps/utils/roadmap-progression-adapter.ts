@@ -1,4 +1,8 @@
 import {
+  buildMasteryHref,
+  fallbackLearningItemIdForNode,
+} from "@/modules/mastery/lib/mastery-href";
+import {
   evaluateNodeUnlock,
   legacyPrerequisiteRule,
 } from "@/modules/progression/engine";
@@ -12,6 +16,14 @@ import type {
   RoadmapProgress,
 } from "../types/roadmap";
 import { normalizeRoadmapProgress } from "./roadmap-progress";
+
+export interface RoadmapPrimaryLearningItem {
+  learningItemId: string;
+  title?: string;
+  kind?: string;
+  sourceType?: string;
+  sourceRef?: string;
+}
 
 export interface RoadmapProgressionInput {
   /** Optional explicit unlock rules by node id; falls back to legacy prerequisiteIds. */
@@ -28,6 +40,7 @@ export interface RoadmapProgressionInput {
   assessmentScores?: Record<string, number>;
   masteredNodeIds?: string[];
   reviewRequiredNodeIds?: string[];
+  primaryLearningItemByNodeId?: Record<string, RoadmapPrimaryLearningItem>;
   nodeCompetenciesByNodeId?: Record<
     string,
     Array<{ id: string; title: string }>
@@ -202,9 +215,37 @@ export function buildRoadmapNodeVMsWithProgression(
             ? "learning"
             : "not_started";
 
+    const primary = input?.primaryLearningItemByNodeId?.[node.id];
+    const learningItemId =
+      primary?.learningItemId ?? fallbackLearningItemIdForNode(node.id);
+    const selectedChoiceId = ctx.branchChoices.get(node.id);
+    const masteryHref = buildMasteryHref(learningItemId, {
+      roadmapId: roadmap.id,
+      nodeId: node.id,
+      ...(selectedChoiceId ? { choiceNodeId: node.id, choiceId: selectedChoiceId } : {}),
+    });
+    const rawSourceRef = primary?.sourceRef ?? node.lessonInfo?.href;
+    const sourceHref =
+      typeof rawSourceRef === "string" && rawSourceRef.startsWith("/")
+        ? rawSourceRef
+        : undefined;
+    const unlocked = evalResult.unlocked;
+    const canOpen = unlocked;
+    const canComplete =
+      unlocked && !isCompleted && evalResult.status !== "mastered";
+
     return {
       ...node,
       status,
+      learningItemId,
+      masteryHref,
+      ...(sourceHref ? { sourceHref } : {}),
+      unlocked,
+      canOpen,
+      canComplete,
+      unlockRule: resolveUnlockRule(node, input) ?? undefined,
+      failedConditions: evalResult.failedConditions,
+      satisfiedConditions: evalResult.satisfiedConditions,
       prerequisites: node.prerequisiteIds.map((prereqId) => {
         const prereq = byId.get(prereqId);
         return {

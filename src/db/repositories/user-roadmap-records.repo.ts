@@ -86,7 +86,7 @@ export function setSelectedRoadmap(
   roadmapId: string | null,
 ): void {
   const now = new Date();
-  db.transaction((tx) => {
+  db.transaction((tx: any) => {
     tx.update(userRoadmapRecords)
       .set({ isSelected: false, selectedAt: null, updatedAt: now })
       .where(
@@ -154,7 +154,7 @@ export function markRoadmapCompleted(
   completedAt = new Date(),
 ): void {
   const now = new Date();
-  db.transaction((tx) => {
+  db.transaction((tx: any) => {
     const existing = tx
       .select()
       .from(userRoadmapRecords)
@@ -211,7 +211,7 @@ export function setUserRoadmapBranchChoice(args: {
   choiceId: string | null;
 }): void {
   const now = new Date();
-  db.transaction((tx) => {
+  db.transaction((tx: any) => {
     if (!args.choiceId) {
       tx.delete(userRoadmapBranchChoices)
         .where(

@@ -7,38 +7,40 @@ import {
   worldToneOptions,
 } from "../schema";
 
-export function listWorldCategories(): WorldCategory[] {
-  const cats = db
+export async function listWorldCategories(): Promise<WorldCategory[]> {
+  const cats = await db
     .select()
     .from(worldCategories)
     .orderBy(asc(worldCategories.sortOrder))
     .all();
 
-  return cats.map((cat) => {
-    const lessons = db
-      .select()
-      .from(worldCategoryLessons)
-      .where(eq(worldCategoryLessons.categoryId, cat.id))
-      .orderBy(asc(worldCategoryLessons.sortOrder))
-      .all();
+  return Promise.all(
+    cats.map(async (cat: any) => {
+      const lessons = await db
+        .select()
+        .from(worldCategoryLessons)
+        .where(eq(worldCategoryLessons.categoryId, cat.id))
+        .orderBy(asc(worldCategoryLessons.sortOrder))
+        .all();
 
-    return {
-      id: cat.id,
-      name: cat.name,
-      hanzi: cat.hanzi,
-      pinyin: cat.subtitlePinyin,
-      lessons: lessons.map((l) => l.title),
-      xp: cat.xp,
-      desc: cat.description,
-    };
-  });
+      return {
+        id: cat.id,
+        name: cat.name,
+        hanzi: cat.hanzi,
+        pinyin: cat.subtitlePinyin,
+        lessons: lessons.map((l: any) => l.title),
+        xp: cat.xp,
+        desc: cat.description,
+      };
+    }),
+  );
 }
 
-export function listWorldToneOptions(): string[] {
-  const rows = db
+export async function listWorldToneOptions(): Promise<string[]> {
+  const rows = await db
     .select()
     .from(worldToneOptions)
     .orderBy(asc(worldToneOptions.sortOrder))
     .all();
-  return rows.map((r) => r.label);
+  return rows.map((r: any) => r.label);
 }

@@ -11,8 +11,7 @@ interface Props {
 }
 
 export function RoadmapRecommendedNext({ node, onSelect, onOpen }: Props) {
-  const hasLink = Boolean(node?.lessonInfo?.href);
-  const canOpen = node?.status !== "locked";
+  const canOpen = node ? node.status !== "locked" : false;
 
   return (
     <Card className="p-5">
@@ -79,7 +78,7 @@ export function RoadmapRecommendedNext({ node, onSelect, onOpen }: Props) {
             disabled={!canOpen}
             className="inline-flex min-h-[44px] items-center gap-2 rounded-[14px] bg-[var(--primary)] px-4 font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {hasLink ? "Open Lesson" : "Mark In Progress"}
+            Open Lesson
             <ArrowRight size={16} />
           </button>
         </div>

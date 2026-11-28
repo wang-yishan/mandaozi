@@ -1,3 +1,7 @@
+import {
+  buildMasteryHref,
+  fallbackLearningItemIdForNode,
+} from "@/modules/mastery/lib/mastery-href";
 import type {
   RoadmapDef,
   RoadmapNodeDef,
@@ -90,18 +94,35 @@ export function buildRoadmapNodeVMs(
   const recommendedNodeId = getRecommendedNodeId(roadmap, normalized);
   const byId = new Map(roadmap.nodes.map((node) => [node.id, node]));
 
-  return roadmap.nodes.map((node) => ({
-    ...node,
-    status: getNodeStatus(node, normalized, recommendedNodeId),
-    prerequisites: node.prerequisiteIds.map((prereqId) => {
-      const prereq = byId.get(prereqId);
-      return {
-        id: prereqId,
-        title: prereq?.title ?? prereqId,
-        completed: isNodeCompleted(normalized, prereqId),
-      };
-    }),
-  }));
+  return roadmap.nodes.map((node) => {
+    const status = getNodeStatus(node, normalized, recommendedNodeId);
+    const learningItemId = fallbackLearningItemIdForNode(node.id);
+    const unlocked = status !== "locked";
+    const completed = status === "completed" || status === "mastered";
+    return {
+      ...node,
+      status,
+      learningItemId,
+      masteryHref: buildMasteryHref(learningItemId, {
+        roadmapId: roadmap.id,
+        nodeId: node.id,
+      }),
+      ...(node.lessonInfo?.href?.startsWith("/")
+        ? { sourceHref: node.lessonInfo.href }
+        : {}),
+      unlocked,
+      canOpen: unlocked,
+      canComplete: unlocked && !completed,
+      prerequisites: node.prerequisiteIds.map((prereqId) => {
+        const prereq = byId.get(prereqId);
+        return {
+          id: prereqId,
+          title: prereq?.title ?? prereqId,
+          completed: isNodeCompleted(normalized, prereqId),
+        };
+      }),
+    };
+  });
 }
 
 export function getRoadmapCompletion(

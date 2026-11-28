@@ -151,6 +151,9 @@ export const roadmapNodeResources = sqliteTable(
       .references(() => learningItems.id, { onDelete: "cascade" }),
     role: text("role").notNull().default("learn"), // learn|practice|review|assessment
     sortOrder: integer("sort_order").notNull().default(0),
+    isPrimary: integer("is_primary", { mode: "boolean" })
+      .notNull()
+      .default(false),
     unlockRuleJson: text("unlock_rule_json", { mode: "json" }),
   },
   (t) => [
@@ -158,6 +161,9 @@ export const roadmapNodeResources = sqliteTable(
       columns: [t.nodeId, t.learningItemId, t.role],
       name: "roadmap_node_resources_pk",
     }),
+    uniqueIndex("roadmap_node_resources_one_primary_uq")
+      .on(t.nodeId)
+      .where(sql`${t.isPrimary} = 1`),
     index("roadmap_node_resources_node_idx").on(t.nodeId),
     index("roadmap_node_resources_item_idx").on(t.learningItemId),
   ],

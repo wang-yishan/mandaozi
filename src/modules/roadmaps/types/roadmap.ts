@@ -133,6 +133,18 @@ export interface RoadmapNodeAssessmentVM {
 export interface RoadmapNodeVM extends RoadmapNodeDef {
   status: RoadmapNodeStatus;
   prerequisites: Array<{ id: string; title: string; completed: boolean }>;
+  /** Canonical individual learning card id for this roadmap node occurrence. */
+  learningItemId: string;
+  /** Always points to /mastery/<learningItemId>?roadmapId=...&nodeId=... */
+  masteryHref: string;
+  /** Original learning/assignment source, if any; never replaces masteryHref. */
+  sourceHref?: string;
+  unlocked: boolean;
+  canOpen: boolean;
+  canComplete: boolean;
+  unlockRule?: unknown;
+  failedConditions?: unknown[];
+  satisfiedConditions?: unknown[];
   competencies?: RoadmapNodeCompetencyVM[];
   resources?: RoadmapNodeResourceVM[];
   assessments?: RoadmapNodeAssessmentVM[];

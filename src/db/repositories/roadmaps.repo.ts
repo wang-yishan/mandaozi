@@ -26,7 +26,7 @@ function assembleRoadmap(roadmapRow: typeof roadmaps.$inferSelect): RoadmapDef {
     .where(eq(roadmapEdges.roadmapId, roadmapRow.id))
     .all();
 
-  const nodes: RoadmapNodeDef[] = nodeRows.map((n) => {
+  const nodes: RoadmapNodeDef[] = nodeRows.map((n: any) => {
     const prereqs = db
       .select()
       .from(roadmapNodePrerequisites)
@@ -39,7 +39,7 @@ function assembleRoadmap(roadmapRow: typeof roadmaps.$inferSelect): RoadmapDef {
       description: n.description,
       category: n.category as RoadmapNodeDef["category"],
       estimatedDuration: n.estimatedDuration,
-      prerequisiteIds: prereqs.map((p) => p.prerequisiteNodeId),
+      prerequisiteIds: prereqs.map((p: any) => p.prerequisiteNodeId),
       position: { x: n.posX, y: n.posY },
     };
 
@@ -54,7 +54,7 @@ function assembleRoadmap(roadmapRow: typeof roadmaps.$inferSelect): RoadmapDef {
     return node;
   });
 
-  const edges: RoadmapEdgeDef[] = edgeRows.map((e) => ({
+  const edges: RoadmapEdgeDef[] = edgeRows.map((e: any) => ({
     id: e.id,
     source: e.sourceNodeId,
     target: e.targetNodeId,

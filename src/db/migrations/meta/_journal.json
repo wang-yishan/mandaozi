@@ -36,6 +36,20 @@
       "when": 1795774673760,
       "tag": "0004_dry_ghost_rider",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1795774673761,
+      "tag": "0005_mastery_primary_learning_item",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1795842317203,
+      "tag": "0006_tearful_landau",
+      "breakpoints": true
     }
   ]
 }

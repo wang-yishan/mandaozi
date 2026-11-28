@@ -10,7 +10,7 @@ export default async function Page({
   params: Promise<{ categoryId: string }>;
 }) {
   const { categoryId } = await params;
-  const [categories, roadmaps] = [listWorldCategories(), listRoadmaps()];
+  const [categories, roadmaps] = await Promise.all([listWorldCategories(), listRoadmaps()]);
   return (
     <CategoryPage
       categoryId={categoryId}

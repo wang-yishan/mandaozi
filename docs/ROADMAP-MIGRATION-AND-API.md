@@ -1,10 +1,13 @@
 # Roadmap Migration & API (Current Implementation)
 
 ## 1. Database / Migration
-- **Additive migration:** `src/db/migrations/0004_dry_ghost_rider.sql`
+- **Additive migrations:**
+  - `src/db/migrations/0004_dry_ghost_rider.sql` - competency/assessment/progression/record tables.
+  - `src/db/migrations/0005_mastery_primary_learning_item.sql` - adds `roadmap_node_resources.is_primary` and partial unique index `roadmap_node_resources_one_primary_uq` (`node_id` WHERE `is_primary=1`).
 - **Key tables:** `competencies`, `learning_items`, `assessments`, mappings, `roadmap_node_rules`, `user_roadmap_records`, `user_roadmap_branch_choices`, `user_competency_mastery`, `user_assessment_attempts`, `user_learning_item_progress`.
 - **Single selected roadmap per user:** partial unique index `user_roadmap_one_selected_uq` on `user_roadmap_records(user_id)` where `is_selected=1`.
 - **Many completed roadmaps per user:** multiple `user_roadmap_records` rows with `status='completed'`; `completed_at` set.
+- **One primary learning item per roadmap node:** `roadmap_node_resources.is_primary` + partial unique index.
 - **Idempotent assessment attempts:** unique `(user_id, assessment_id, idempotency_key)`.
 
 ## 2. Legacy Backfill
@@ -12,14 +15,15 @@ Run: `bun run db:backfill` (`src/db/backfill/run.ts`)
 
 Idempotent backfill:
 - `prerequisiteIds` -> `roadmap_node_rules` legacy unlock rules (`rule:<nodeId>:unlock:legacy`)
-- `lessonInfo` -> `learning_items` + `roadmap_node_resources`
+- Every roadmap node gets a canonical primary `learning_items` row (`li:node:<nodeId>` fallback) and a primary `roadmap_node_resources` mapping, even when `lessonLabel`/`lessonHref` are missing.
+- Preserves existing source refs/titles where valid; repairs missing title/source/active conservatively.
 - node -> baseline competency (`cmp:node:<nodeId>`) + assessment mapping for assessment nodes
 - `user_profiles.selected_path_roadmap_id` + completed node progress -> `user_roadmap_records`
 
 ## 3. Server Actions (Zod + auth)
 ### `src/app/actions/user-state.ts`
 - `loadUserStateAction()` - loads Madara/Phonics persisted state.
-- `saveMadaraStateAction(state)` - Zod validated; saves snapshot; syncs `roadmapChoiceById` to `user_roadmap_branch_choices`; syncs `selectedPathRoadmapId` to `user_roadmap_records` (single-selected) and `user_profiles.selected_path_roadmap_id` cache.
+- `saveMadaraStateAction(state)` - Zod validated; saves snapshot; syncs `roadmapChoiceById` to `user_roadmap_branch_choices`; syncs `selectedPathRoadmapId` to `user_roadmap_records` (single-selected) and `user_profiles.selected_path_roadmap_id` cache. Roadmap node progress is merged so server-completed nodes are not downgraded by stale client snapshots.
 - `savePhonicsStateAction(state)` - Zod validated.
 - `migrateLocalStorageStateAction({madara,phonics})` - Zod validated, migrates only when DB has no state.
 
@@ -27,19 +31,23 @@ Idempotent backfill:
 - `setSelectedRoadmapAction({roadmapId})` - sets single selected roadmap.
 - `setRoadmapBranchChoiceAction({roadmapId,choiceNodeId,choiceId})` - persists branch choice.
 - `listUserRoadmapRecordsAction()` - returns records + completed records.
-- `getRoadmapProgressionContextAction({roadmapId,nodeIds})` - returns rules, branch choices, mastery, assessment pass/score, node competency/resource/assessment mappings.
+- `getRoadmapProgressionContextAction({roadmapId,nodeIds})` - returns rules, branch choices, mastery, assessment pass/score, node competency/resource/assessment mappings, and `primaryLearningItemByNodeId`.
 
 ### `src/app/actions/assessments.ts`
 - `submitAssessmentAttemptAction(input)` - Zod validated; idempotent by `idempotencyKey`; grades auto assessment; persists attempt and emitted competency evidence.
 - `listAssessmentAttemptsAction({roadmapId?,nodeId?,limit?})` - returns recent attempts.
 
+### `src/app/actions/mastery.ts`
+- `completeMasteryCardAction({learningItemId,roadmapId?,nodeId?,idempotencyKey?})` - auth+Zod; verifies learning item belongs to node/resource; checks unlock server-side via progression engine; upserts `user_learning_item_progress`; marks `user_roadmap_node_progress` completed only when unlocked and required assessments pass; returns next `masteryHref` and completed node ids. No manual review.
+
 ## 4. VM / UI Wiring
-- `buildRoadmapNodeVMsWithProgression` falls back to legacy prerequisiteIds when no explicit rules exist.
-- Hook/Dao load DB progression context and pass rules/mastery/assessment/branch choices/enrichment into adapter, including `competencyStates`, `masteredNodeIds`, `reviewRequiredNodeIds`.
+- `buildRoadmapNodeVMsWithProgression` always emits `learningItemId`, `masteryHref`, `sourceHref?`, `unlocked`, `canOpen`, `canComplete`, unlock rule and failed/satisfied conditions. It falls back to `li:node:<nodeId>` when primary mapping is missing.
+- `masteryHref` contract: `/mastery/<encoded-learningItemId>?roadmapId=<roadmapId>&nodeId=<nodeId>&...` . `learningItemId` is stable card identity; `roadmapId+nodeId` are occurrence context.
+- Roadmap primary navigation (Roadmaps, Dao, Recommended Next, Detail Panel) opens `masteryHref`, not raw `lessonInfo.href`. Original source is preserved as `sourceHref`.
+- `/mastery` lists individual active learning cards. `/mastery/[learningItemId]` renders a card, optional roadmap context, prerequisites from roadmap progression, source action, and completion action.
+- `completeMasteryCardAction` is the server-authoritative completion path; UI can update Zustand optimistically but should reconcile with server result.
+- Hook/Dao load DB progression context and pass rules/mastery/assessment/branch choices/enrichment into adapter, including `primaryLearningItemByNodeId`, `competencyStates`, `masteredNodeIds`, `reviewRequiredNodeIds`.
 - Detail bottom sheet shows competency/mastery, assessment, resources, recent attempts; includes basic custom drag-to-close on mobile (no new dependency).
-- `RoadmapRecommendedNext` shows guided next action/resources in Roadmaps and Dao.
-- Dao and Roadmaps show completed-roadmaps history.
-- Dashboard roadmap preview status UI handles mastered/review_required/in-progress/recommended; data source is still heuristic (not full DB progression VM).
 
 ## 5. Verification Commands
 ```bash

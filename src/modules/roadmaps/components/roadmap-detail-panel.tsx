@@ -135,7 +135,6 @@ export function RoadmapDetailPanel({
 
   if (!node) return null;
 
-  const hasLink = Boolean(node.lessonInfo?.href);
   const canOpen = node.status !== "locked";
 
   return (
@@ -200,9 +199,7 @@ export function RoadmapDetailPanel({
           <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">
             {node.status === "locked"
               ? "Complete the prerequisite topics first to unlock this node. Review the prerequisites below, then continue with the recommended available topic."
-              : hasLink
-                ? `Open this ${node.lessonInfo?.kind ?? "lesson"} to study "${node.lessonInfo?.label ?? node.title}". After finishing, return to the roadmap to continue with the next recommended topic.`
-                : "This topic is ready in the roadmap but its lesson link has not been added yet. You can mark it in progress now, and add the route later in the roadmap data."}
+              : `Open this mastery card to study "${node.lessonInfo?.label ?? node.title}". Complete the learning or assessment inside it, then return to the roadmap - unlocked next steps will update automatically.`}
           </p>
         </div>
 
@@ -235,7 +232,10 @@ export function RoadmapDetailPanel({
             <div className="mt-1 font-bold">
               {node.lessonInfo
                 ? `${node.lessonInfo.label} · ${node.lessonInfo.kind}`
-                : "Not configured"}
+                : "Mastery card"}
+            </div>
+            <div className="mt-1 text-xs text-[var(--muted)] break-all">
+              {node.masteryHref}
             </div>
           </div>
         </div>
@@ -442,7 +442,7 @@ export function RoadmapDetailPanel({
             {canOpen ? (
               <>
                 <BookOpen size={16} />
-                {hasLink ? "Open Assignment / Lesson" : "Mark In Progress"}
+                Open Assignment / Lesson
                 <ArrowUpRight size={16} />
               </>
             ) : (

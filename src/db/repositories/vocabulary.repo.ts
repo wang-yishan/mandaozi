@@ -3,8 +3,8 @@ import { db } from "../index";
 import { mapVocabWordRow } from "../mappers/vocabulary.mapper";
 import { vocabularyWords } from "../schema";
 
-export function listVocabulary() {
-  const rows = db
+export async function listVocabulary() {
+  const rows = await db
     .select()
     .from(vocabularyWords)
     .orderBy(asc(vocabularyWords.sortOrder))
@@ -12,8 +12,8 @@ export function listVocabulary() {
   return rows.map(mapVocabWordRow);
 }
 
-export function listVocabularyByHsk(hskLevel: string) {
-  const rows = db
+export async function listVocabularyByHsk(hskLevel: string) {
+  const rows = await db
     .select()
     .from(vocabularyWords)
     .where(eq(vocabularyWords.hskLevel, hskLevel))
@@ -22,8 +22,8 @@ export function listVocabularyByHsk(hskLevel: string) {
   return rows.map(mapVocabWordRow);
 }
 
-export function getVocabularyByHanzi(hanzi: string) {
-  const row = db
+export async function getVocabularyByHanzi(hanzi: string) {
+  const row = await db
     .select()
     .from(vocabularyWords)
     .where(eq(vocabularyWords.hanzi, hanzi))
